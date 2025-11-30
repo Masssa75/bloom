@@ -197,6 +197,13 @@ npm run build
 git add -A && git commit -m "feat: description" && git push origin main
 ```
 
+## Supabase Project
+
+- **Project Ref:** aloekdzacexftdpewxrd
+- **Dashboard:** https://supabase.com/dashboard/project/aloekdzacexftdpewxrd
+- **API URL:** https://aloekdzacexftdpewxrd.supabase.co
+- **Region:** Southeast Asia (Singapore)
+
 ## Session Log
 
 ### Session - November 30, 2025: Project Setup
@@ -204,4 +211,8 @@ git add -A && git commit -m "feat: description" && git push origin main
 - Initialized Next.js with TypeScript + Tailwind
 - Installed Supabase + Anthropic SDK
 - Created CLAUDE.md and .env.local template
-- TODO: Create Supabase project, set up database schema, build auth flow
+- Created Supabase project (aloekdzacexftdpewxrd)
+- Set up database schema with tables: profiles, children, collaborators, sessions, documents
+- Configured RLS policies for all tables
+- Created auto-profile trigger on user signup
+- Next: Build auth flow, create landing page
