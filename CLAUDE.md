@@ -338,6 +338,14 @@ git add -A && git commit -m "feat: description" && git push origin main
 - **API URL:** https://aloekdzacexftdpewxrd.supabase.co
 - **Region:** Southeast Asia (Singapore)
 
+## Netlify Project
+
+- **Site Name:** bloom-wunderkind
+- **Site ID:** f7be0728-c390-48e4-965c-de2a5af7162e
+- **Admin URL:** https://app.netlify.com/projects/bloom-wunderkind
+- **Netlify URL:** https://bloom-wunderkind.netlify.app
+- **Custom Domain:** https://bloom.wunderkind.world (pending DNS setup)
+
 ## Session Log
 
 ### Session - November 30, 2025: Project Setup
