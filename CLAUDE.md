@@ -9,7 +9,7 @@
 - Collaborate with multiple caregivers on a child's profile
 - Track progress over time
 
-**Live URL:** https://bloom.wunderkind.world (planned)
+**Live URL:** https://bloom.wunderkind.world
 **GitHub:** https://github.com/Masssa75/bloom
 
 ## Tech Stack
@@ -56,11 +56,11 @@ You have COMPLETE autonomous control:
 # Stream deployment logs in real-time
 netlify logs:deploy
 
-# Get deployment details (update site_id once Netlify is connected)
-netlify api listSiteDeploys --data '{"site_id": "YOUR_SITE_ID"}' | jq '.[0:3]'
+# Get deployment details
+netlify api listSiteDeploys --data '{"site_id": "f7be0728-c390-48e4-965c-de2a5af7162e"}' | jq '.[0:3]'
 
 # Get specific deployment error
-netlify api getSiteDeploy --data '{"site_id": "YOUR_SITE_ID", "deploy_id": "DEPLOY_ID"}' | jq '.error_message'
+netlify api getSiteDeploy --data '{"site_id": "f7be0728-c390-48e4-965c-de2a5af7162e", "deploy_id": "DEPLOY_ID"}' | jq '.error_message'
 ```
 
 ### Resolving Git Conflicts
@@ -344,9 +344,22 @@ git add -A && git commit -m "feat: description" && git push origin main
 - **Site ID:** f7be0728-c390-48e4-965c-de2a5af7162e
 - **Admin URL:** https://app.netlify.com/projects/bloom-wunderkind
 - **Netlify URL:** https://bloom-wunderkind.netlify.app
-- **Custom Domain:** https://bloom.wunderkind.world (pending DNS setup)
+- **Custom Domain:** https://bloom.wunderkind.world ✅
+- **GitHub Auto-Deploy:** Connected to `Masssa75/bloom` (main branch)
+- **SSL:** Enabled
 
 ## Session Log
+
+### Session - December 2, 2025: Full Deployment
+- Created Netlify site (bloom-wunderkind)
+- Configured all environment variables on Netlify
+- Connected GitHub repo for auto-deploy
+- Set up custom domain: bloom.wunderkind.world
+- SSL enabled automatically
+- Added development guidelines from BambooValley CLAUDE.md
+- Added Netlify MCP server to Claude Code settings
+- Verified all systems working: Supabase API, Netlify deployment, GitHub connection
+- Next: Build auth flow, dashboard, AI interview feature
 
 ### Session - November 30, 2025: Project Setup
 - Created GitHub repo: https://github.com/Masssa75/bloom
@@ -357,4 +370,3 @@ git add -A && git commit -m "feat: description" && git push origin main
 - Set up database schema with tables: profiles, children, collaborators, sessions, documents
 - Configured RLS policies for all tables
 - Created auto-profile trigger on user signup
-- Next: Build auth flow, create landing page
