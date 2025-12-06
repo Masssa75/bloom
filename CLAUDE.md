@@ -350,6 +350,35 @@ git add -A && git commit -m "feat: description" && git push origin main
 
 ## Session Log
 
+### Session - December 3, 2025: Deployment Verification & Research
+**Status:** Completed (session crashed, wrapped by new instance)
+
+**Completed:**
+- Verified Netlify deployment configuration via CLI (MCP tools not available)
+- Confirmed GitHub auto-deploy connected: Masssa75/bloom → main branch
+- Confirmed custom domain: bloom.wunderkind.world with SSL enabled
+- Site verified live and returning HTTP/2 200
+
+**Research Conducted:**
+- OpenAI "Sign in with ChatGPT" OAuth system:
+  - Being developed but not yet available for third-party apps
+  - Currently only works for OpenAI's own tools (e.g., Codex CLI uses subscription quota)
+  - Third-party apps still require separate API billing
+  - OpenAI accepting interest via sign-up form
+- Google Gemini API access:
+  - Consumer subscriptions (Gemini Advanced/Pro) do NOT provide API access
+  - API requires separate billing or free tier
+  - No equivalent to "bring your own subscription" model
+
+**Notes:**
+- Netlify MCP server was expected but tools not available in session
+- All Netlify operations completed successfully via CLI commands
+- No code changes made
+
+**Next Steps:** Build auth flow, dashboard, AI interview feature
+
+---
+
 ### Session - December 2, 2025: Full Deployment
 - Created Netlify site (bloom-wunderkind)
 - Configured all environment variables on Netlify
