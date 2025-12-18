@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextRequest } from 'next/server'
 import OpenAI from 'openai'
+import { generateComponentPrompt } from '@/lib/chat/components'
 
 // Supabase client for document fetching
 const supabase = createClient(
@@ -204,20 +205,7 @@ The document list from get_child_overview includes one_liner summaries for each 
 - When you need specific intervention steps or scripts
 - Deep dives into particular behavioral patterns
 
-## Response Components
-
-Format responses using these HTML components:
-
-<urgent>action items here</urgent>  → Red card: immediate actions (max 3-4 bullets)
-<script>exact words</script>        → Blue card: what to say to the child verbatim
-<later title="Title">steps</later>  → Collapsible: follow-up steps when calm
-<note>context</note>                → Gray aside: brief context or explanation
-
-**Guidelines:**
-- Urgent situations: use <urgent> + <script>, optionally <later>
-- Informational questions: plain text, optionally <note> for tips
-- Keep responses concise - teachers are busy and stressed
-- <script> must be words they can read aloud exactly
+${generateComponentPrompt()}
 
 ## Important
 

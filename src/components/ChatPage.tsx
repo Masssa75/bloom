@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import Link from 'next/link'
+import { getComponentTags } from '@/lib/chat/components'
 
 interface Child {
   id: string
@@ -33,8 +34,9 @@ interface ParsedComponent {
 function parseComponentResponse(content: string): ParsedComponent[] {
   const components: ParsedComponent[] = []
 
-  // Regex to match our custom components
-  const componentRegex = /<(urgent|script|later|note)(?:\s+title="([^"]*)")?>([\s\S]*?)<\/\1>/g
+  // Build regex from component tags config
+  const tags = getComponentTags().join('|')
+  const componentRegex = new RegExp(`<(${tags})(?:\\s+title="([^"]*)")?>([\s\S]*?)<\\/\\1>`, 'g')
 
   let lastIndex = 0
   let match
