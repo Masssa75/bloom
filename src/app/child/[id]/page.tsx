@@ -3,6 +3,7 @@ import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import CollaboratorsSection from '@/components/CollaboratorsSection'
 import DocumentCategories from '@/components/DocumentCategories'
+import ChatInterface from '@/components/ChatInterface'
 
 interface ContentItem {
   id: string
@@ -93,9 +94,6 @@ export default async function ChildProfilePage({
           >
             <span className="text-orange-700 font-medium">Report Incident</span>
           </Link>
-          <div className="flex-1 bg-blue-50 border border-blue-200 rounded-xl p-4 text-center opacity-50">
-            <span className="text-blue-700 font-medium">Chat (Coming Soon)</span>
-          </div>
         </div>
 
         {/* Quick Reference Documents */}
@@ -201,6 +199,9 @@ export default async function ChildProfilePage({
         {/* Collaborators Section */}
         <CollaboratorsSection childId={id} isOwner={isOwner} />
       </main>
+
+      {/* Chat Interface */}
+      <ChatInterface childId={id} childName={child.name} />
     </div>
   )
 }
