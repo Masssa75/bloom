@@ -144,19 +144,14 @@ async function executeTool(name: string, args: Record<string, string>): Promise<
 
       if (!document) return JSON.stringify({ error: 'Document not found' })
 
-      // Return summary + truncated content to stay within token limits
-      // Groq has 10k TPM limit, so we keep documents short
-      const content = document.full_content || ''
-      const truncatedContent = content.length > 3000
-        ? content.substring(0, 3000) + '\n\n[Content truncated - see full document in case files]'
-        : content
-
       return JSON.stringify({
         id: document.id,
         title: document.title,
+        type: document.type,
+        subtype: document.subtype,
         one_liner: document.one_liner,
         summary: document.summary,
-        content_preview: truncatedContent,
+        full_content: document.full_content,
         weight: document.weight
       })
     }
@@ -190,27 +185,35 @@ You are supporting **${childName}** (child ID: ${childId})
 
 You have tools to access ${childName}'s case files:
 
-1. **get_child_overview** - Call this FIRST to see ${childName}'s profile, context summary, and list of available documents
-2. **get_document** - Fetch specific documents relevant to the question (use sparingly - only 1-2 most relevant)${webSearchText}
+1. **get_child_overview** - Call this FIRST to see ${childName}'s profile, context summary, and list of available documents with summaries
+2. **get_document** - Fetch the FULL content of a specific document${webSearchText}
 
-## Workflow
+## When to Fetch Full Documents
 
-1. For any question about ${childName}, first call get_child_overview to see available information
-2. Review the context_index summary - this often has enough info to answer
-3. Only fetch 1-2 specific documents if the summary doesn't cover the question
-4. Synthesize your response using the case file information
+The document list from get_child_overview includes one_liner summaries for each document. Use these to decide:
+
+**Use summaries (don't fetch full doc) for:**
+- Quick questions about the child
+- General behavioral advice
+- Routine check-ins
+- When one_liners already answer the question
+
+**Fetch full documents for:**
+- Creating comprehensive analysis or reports
+- Dealing with complex/escalating situations
+- When you need specific intervention steps or scripts
+- Deep dives into particular behavioral patterns
 
 ## Response Style
 
 - Be warm, supportive, and practical
 - Give specific, actionable advice grounded in the case files
-- Keep responses focused and concise (2-3 paragraphs max)
+- Keep responses focused and conversational
 - If something isn't covered in the case files, use your expertise in child development
 
 ## Important
 
-- CRITICAL: Be efficient with document fetches - the context_index and document summaries often have enough info
-- The context_index provides a quick summary - check it first before fetching full documents
+- The context_index provides a quick summary of the child - check it first
 - Documents with weight 5 are essential references
 - Prioritize strategies documented in ${childName}'s case files over generic advice`
 }
