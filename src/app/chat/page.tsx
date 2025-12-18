@@ -52,5 +52,5 @@ export default async function ChatRoute() {
     index === self.findIndex(c => c.id === child.id)
   )
 
-  return <ChatPage children={uniqueChildren} />
+  return <ChatPage children={uniqueChildren} userId={user.id} />
 }

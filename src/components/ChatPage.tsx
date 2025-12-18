@@ -24,6 +24,7 @@ interface Message {
 
 interface ChatPageProps {
   children: Child[]
+  userId: string
 }
 
 interface ParsedComponent {
@@ -274,7 +275,7 @@ function StructuredResponse({ content, toolCalls }: { content: string; toolCalls
   )
 }
 
-export default function ChatPage({ children }: ChatPageProps) {
+export default function ChatPage({ children, userId }: ChatPageProps) {
   const [selectedChild, setSelectedChild] = useState<Child | null>(
     children.length > 0 ? children[0] : null
   )
@@ -284,6 +285,7 @@ export default function ChatPage({ children }: ChatPageProps) {
   const [currentToolCalls, setCurrentToolCalls] = useState<ToolCall[]>([])
   const [menuOpen, setMenuOpen] = useState(false)
   const [childSelectorOpen, setChildSelectorOpen] = useState(false)
+  const [sessionId, setSessionId] = useState<string | null>(null)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
@@ -299,9 +301,10 @@ export default function ChatPage({ children }: ChatPageProps) {
     inputRef.current?.focus()
   }, [])
 
-  // Reset chat when child changes
+  // Reset chat and session when child changes
   useEffect(() => {
     setMessages([])
+    setSessionId(null)
   }, [selectedChild?.id])
 
   // Auto-resize textarea
@@ -341,10 +344,11 @@ export default function ChatPage({ children }: ChatPageProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
+          message: userMessage,
+          sessionId,
           childId: selectedChild.id,
           childName: selectedChild.name,
-          messages: newMessages.map(m => ({ role: m.role, content: m.content })),
-          provider: 'moonshot'
+          userId
         })
       })
 
@@ -368,6 +372,11 @@ export default function ChatPage({ children }: ChatPageProps) {
           if (line.startsWith('data: ')) {
             try {
               const data = JSON.parse(line.slice(6))
+
+              if (data.type === 'session') {
+                // New session created - save the ID for subsequent messages
+                setSessionId(data.sessionId)
+              }
 
               if (data.type === 'content') {
                 assistantContent += data.content
@@ -478,7 +487,9 @@ export default function ChatPage({ children }: ChatPageProps) {
 
     const userMessage = messages[lastUserMessageIndex].content
     // Remove the incomplete assistant response and resend
+    // Also reset session since server state is out of sync
     setMessages(messages.slice(0, lastUserMessageIndex))
+    setSessionId(null) // Start fresh session on retry
     setInput(userMessage)
     inputRef.current?.focus()
   }

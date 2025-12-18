@@ -9,32 +9,15 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-// Kimi K2 via GroqCloud (faster + automatic caching)
-const groq = new OpenAI({
-  apiKey: process.env.GROQ_API_KEY,
-  baseURL: 'https://api.groq.com/openai/v1'
-})
-
-// Kimi K2 via Moonshot direct (has web search)
+// Moonshot client for chat
 const moonshot = new OpenAI({
   apiKey: process.env.MOONSHOT_API_KEY,
   baseURL: 'https://api.moonshot.ai/v1'
 })
 
-type Provider = 'groq' | 'moonshot'
-
-const providerConfig = {
-  groq: {
-    client: groq,
-    model: 'moonshotai/kimi-k2-instruct',
-    hasWebSearch: false
-  },
-  moonshot: {
-    client: moonshot,
-    model: 'kimi-k2-0711-preview',
-    hasWebSearch: true
-  }
-}
+// Moonshot caching API (uses .cn endpoint)
+const MOONSHOT_CACHE_URL = 'https://api.moonshot.cn/v1/caching'
+const CACHE_TTL = 3600 // 1 hour in seconds
 
 // Base tools (always available)
 const baseTools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
@@ -78,12 +61,12 @@ const baseTools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   },
 ]
 
-// Web search tool (only for Moonshot which has built-in support)
+// Web search tool
 const webSearchTool: OpenAI.Chat.Completions.ChatCompletionTool = {
   type: 'function',
   function: {
     name: 'web_search',
-    description: 'Search the web for additional information about child behavioral strategies, research, or techniques not covered in the case files.',
+    description: 'Search the web for developmental frameworks, parenting approaches, behavioral strategies, enrichment ideas, or research relevant to this child.',
     parameters: {
       type: 'object',
       properties: {
@@ -95,13 +78,6 @@ const webSearchTool: OpenAI.Chat.Completions.ChatCompletionTool = {
       required: ['query']
     }
   }
-}
-
-function getToolsForProvider(provider: Provider): OpenAI.Chat.Completions.ChatCompletionTool[] {
-  if (providerConfig[provider].hasWebSearch) {
-    return [...baseTools, webSearchTool]
-  }
-  return baseTools
 }
 
 // Execute tool calls
@@ -158,7 +134,6 @@ async function executeTool(name: string, args: Record<string, string>): Promise<
     }
 
     if (name === 'web_search') {
-      // Moonshot handles web search natively - just return confirmation
       return JSON.stringify({
         status: 'Web search initiated',
         query: args.query,
@@ -172,94 +147,273 @@ async function executeTool(name: string, args: Record<string, string>): Promise<
   }
 }
 
-function buildSystemPrompt(childId: string, childName: string, hasWebSearch: boolean): string {
-  const webSearchText = hasWebSearch
-    ? '\n3. **web_search** - Search the web for additional behavioral research or strategies'
-    : ''
-
-  return `You are Bloom AI, a warm and knowledgeable behavioral support assistant for children. You help teachers, parents, and caregivers understand and support children's behavioral development using evidence-based frameworks like Dr. Ross Greene's Collaborative & Proactive Solutions (CPS).
+// Case Support Mode - when child has documents
+function buildCaseSupportPrompt(childId: string, childName: string): string {
+  return `You are Bloom AI, a warm and knowledgeable behavioral support assistant. You help teachers, parents, and caregivers support children's development using evidence-based approaches.
 
 ## Current Child
 You are supporting **${childName}** (child ID: ${childId})
 
-## How to Access Information
+## Tools
 
-You have tools to access ${childName}'s case files:
+1. **get_child_overview** - Get ${childName}'s profile and document list. Call this FIRST.
+2. **get_document** - Fetch full content of a specific document
+3. **web_search** - Search the web for behavioral strategies or research
 
-1. **get_child_overview** - Call this FIRST to see ${childName}'s profile, context summary, and list of available documents with summaries
-2. **get_document** - Fetch the FULL content of a specific document${webSearchText}
+## When to Fetch Documents
 
-## When to Fetch Full Documents
-
-The document list from get_child_overview includes one_liner summaries for each document. Use these to decide:
-
-**Use summaries (don't fetch full doc) for:**
-- Quick questions about the child
-- General behavioral advice
-- Routine check-ins
-- When one_liners already answer the question
-
-**Fetch full documents for:**
-- Creating comprehensive analysis or reports
-- Dealing with complex/escalating situations
-- When you need specific intervention steps or scripts
-- Deep dives into particular behavioral patterns
+Use one_liner summaries for quick questions. Fetch full documents for:
+- Complex/escalating situations
+- Specific intervention scripts
+- Deep dives into behavioral patterns
 
 ${generateComponentPrompt()}
 
 ## Important
 
-- The context_index provides a quick summary of the child - check it first
+- Prioritize strategies from ${childName}'s case files over generic advice
 - Documents with weight 5 are essential references
-- Prioritize strategies documented in ${childName}'s case files over generic advice`
+- Keep responses concise - caregivers are busy`
+}
+
+// Discovery Interview Mode - when child has no documents
+function buildInterviewPrompt(childName: string): string {
+  return `You are Bloom AI, conducting a discovery interview to understand **${childName}**.
+
+## Your Opening
+
+Start with: "I'd love to learn about ${childName}. Tell me about them - start wherever feels important to you."
+
+## Interview Approach
+
+**Follow their lead.** What they share first reveals what matters most. Don't impose structure - let the conversation flow naturally.
+
+**If they mention concerns:** Explore with specifics - what happens before, during, after? Get exact examples.
+
+**If they describe personality:** Ask for specific moments that show those traits.
+
+## Areas to Explore (when natural)
+
+- **Temperament**: Introverted/extroverted? Sensitive or resilient? Cautious or bold?
+- **Emotions**: How do they show frustration? Joy? How do they recover from upsets?
+- **Relationships**: How do they connect with others? Need warm-up time?
+- **Interests**: What captivates them? How do they explore?
+- **Strengths**: When do they shine?
+- **Edges**: What's slightly challenging? (growth areas, not problems)
+- **What works**: What helps when they're struggling?
+
+## Guidelines
+
+- Stay curious and warm - no judgment
+- Ask for SPECIFIC examples, not generalizations
+- Get their exact words: "What does ${childName} say when...?"
+- You are GATHERING information, not interpreting it
+- Do NOT diagnose, label, or suggest causes
+- One question at a time - don't overwhelm
+- Keep it conversational, not like a form
+
+**After the interview:** Offer to research frameworks or resources that match what you learned. Use web_search to find developmental approaches, parenting strategies, or enrichment ideas that fit their profile.`
+}
+
+// Create or update Moonshot cache
+async function createCache(
+  messages: OpenAI.Chat.Completions.ChatCompletionMessageParam[],
+  tools: OpenAI.Chat.Completions.ChatCompletionTool[],
+  sessionName: string
+): Promise<{ cacheId: string; expiresAt: Date } | null> {
+  try {
+    const response = await fetch(MOONSHOT_CACHE_URL, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.MOONSHOT_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'moonshot-v1',
+        messages,
+        tools,
+        name: sessionName,
+        ttl: CACHE_TTL
+      })
+    })
+
+    if (!response.ok) {
+      const error = await response.text()
+      console.error('Failed to create cache:', error)
+      return null
+    }
+
+    const data = await response.json()
+    const expiresAt = new Date(Date.now() + CACHE_TTL * 1000)
+
+    console.log('Cache created:', data.id)
+    return { cacheId: data.id, expiresAt }
+  } catch (error) {
+    console.error('Cache creation error:', error)
+    return null
+  }
+}
+
+// Delete a cache
+async function deleteCache(cacheId: string): Promise<void> {
+  try {
+    await fetch(`${MOONSHOT_CACHE_URL}/${cacheId}`, {
+      method: 'DELETE',
+      headers: {
+        'Authorization': `Bearer ${process.env.MOONSHOT_API_KEY}`
+      }
+    })
+  } catch (error) {
+    console.error('Cache deletion error:', error)
+  }
+}
+
+// Type for stored messages (compatible with OpenAI types)
+type StoredMessage = {
+  role: 'system' | 'user' | 'assistant' | 'tool'
+  content: string | null
+  tool_calls?: Array<{
+    id: string
+    type: 'function'
+    function: { name: string; arguments: string }
+  }>
+  tool_call_id?: string
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const { messages, childId, childName, provider = 'groq' } = await request.json()
+    const { message, sessionId, childId, childName, userId } = await request.json()
 
-    if (!childId || !messages) {
+    if (!childId || !message) {
       return new Response(JSON.stringify({ error: 'Missing required fields' }), {
         status: 400,
         headers: { 'Content-Type': 'application/json' }
       })
     }
 
-    // Get provider configuration
-    const config = providerConfig[provider as Provider] || providerConfig.groq
-    const tools = getToolsForProvider(provider as Provider)
+    // Check if child has documents to determine mode
+    const { count } = await supabase
+      .from('content_items')
+      .select('id', { count: 'exact', head: true })
+      .eq('child_id', childId)
 
-    // Build conversation with system prompt
-    const systemMessage: OpenAI.Chat.Completions.ChatCompletionMessageParam = {
-      role: 'system',
-      content: buildSystemPrompt(childId, childName || 'this child', config.hasWebSearch)
+    const hasDocuments = (count ?? 0) > 0
+    const isInterviewMode = !hasDocuments
+    const tools = isInterviewMode ? [webSearchTool] : [...baseTools, webSearchTool]
+
+    // Load or create session
+    let session: {
+      id: string
+      messages: StoredMessage[]
+      cache_id: string | null
+      cache_expires_at: string | null
+    } | null = null
+
+    if (sessionId) {
+      const { data } = await supabase
+        .from('chat_sessions')
+        .select('id, messages, cache_id, cache_expires_at')
+        .eq('id', sessionId)
+        .single()
+      session = data
     }
 
-    let conversationMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
-      systemMessage,
-      ...messages
-    ]
+    // Build system prompt
+    const systemPrompt = isInterviewMode
+      ? buildInterviewPrompt(childName || 'this child')
+      : buildCaseSupportPrompt(childId, childName || 'this child')
 
-    // Create a streaming response
+    // Determine if we can use cache
+    const now = new Date()
+    const cacheValid = session?.cache_id &&
+      session?.cache_expires_at &&
+      new Date(session.cache_expires_at) > now
+
+    // Build messages for this request
+    let conversationMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[]
+    let toolsToSend: OpenAI.Chat.Completions.ChatCompletionTool[]
+
+    if (cacheValid && session) {
+      // Use cache - send cache reference + new message only
+      console.log('Using cache:', session.cache_id)
+      conversationMessages = [
+        {
+          // Moonshot cache message format
+          role: 'cache' as unknown as 'user', // Cast needed - OpenAI SDK doesn't know about 'cache' role
+          content: `cache_id=${session.cache_id};reset_ttl=${CACHE_TTL}`
+        },
+        { role: 'user' as const, content: message }
+      ]
+      // Don't send tools - they're in the cache
+      toolsToSend = []
+    } else {
+      // No cache - send full conversation
+      const existingMessages = session?.messages || []
+      conversationMessages = [
+        { role: 'system' as const, content: systemPrompt },
+        ...existingMessages.map(m => ({
+          role: m.role,
+          content: m.content,
+          tool_calls: m.tool_calls,
+          tool_call_id: m.tool_call_id
+        } as OpenAI.Chat.Completions.ChatCompletionMessageParam)),
+        { role: 'user' as const, content: message }
+      ]
+      toolsToSend = tools
+    }
+
+    // Track the full conversation for saving (always includes everything)
+    let fullConversation: StoredMessage[] = session?.messages || []
+    fullConversation.push({ role: 'user', content: message })
+
+    // Create response stream
     const encoder = new TextEncoder()
     const stream = new ReadableStream({
       async start(controller) {
+        let newSessionId = session?.id
         let continueLoop = true
         let iterations = 0
-        const maxIterations = 10 // Prevent infinite loops
+        const maxIterations = 10
+        let finalAssistantContent = ''
+
+        // Send session ID immediately if new
+        if (!session) {
+          // Create new session
+          const { data: newSession } = await supabase
+            .from('chat_sessions')
+            .insert({
+              child_id: childId,
+              user_id: userId,
+              messages: [{ role: 'user', content: message }]
+            })
+            .select('id')
+            .single()
+
+          if (newSession) {
+            newSessionId = newSession.id
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+              type: 'session',
+              sessionId: newSessionId
+            })}\n\n`))
+          }
+        }
 
         while (continueLoop && iterations < maxIterations) {
           iterations++
 
           try {
-            const response = await config.client.chat.completions.create({
-              model: config.model,
+            const createParams: OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming = {
+              model: 'kimi-k2-0711-preview',
               messages: conversationMessages,
-              tools,
               temperature: 0.6,
               max_tokens: 4096,
               stream: true
-            })
+            }
+            if (toolsToSend.length > 0) {
+              createParams.tools = toolsToSend
+            }
+
+            const response = await moonshot.chat.completions.create(createParams)
 
             let assistantContent = ''
             let toolCalls: Array<{
@@ -272,7 +426,6 @@ export async function POST(request: NextRequest) {
               const choice = chunk.choices[0]
               if (!choice) continue
 
-              // Handle content
               if (choice.delta?.content) {
                 assistantContent += choice.delta.content
                 controller.enqueue(encoder.encode(`data: ${JSON.stringify({
@@ -281,14 +434,10 @@ export async function POST(request: NextRequest) {
                 })}\n\n`))
               }
 
-              // Handle tool calls
               if (choice.delta?.tool_calls) {
                 for (const tc of choice.delta.tool_calls) {
                   if (tc.id) {
-                    // New tool call starting
-                    if (currentToolCall) {
-                      toolCalls.push(currentToolCall)
-                    }
+                    if (currentToolCall) toolCalls.push(currentToolCall)
                     currentToolCall = {
                       id: tc.id,
                       function: { name: tc.function?.name || '', arguments: '' }
@@ -303,22 +452,19 @@ export async function POST(request: NextRequest) {
                 }
               }
 
-              // Check if finished
-              if (choice.finish_reason === 'tool_calls') {
-                if (currentToolCall) {
-                  toolCalls.push(currentToolCall)
-                }
+              if (choice.finish_reason === 'tool_calls' && currentToolCall) {
+                toolCalls.push(currentToolCall)
               }
 
               if (choice.finish_reason === 'stop') {
                 continueLoop = false
+                finalAssistantContent = assistantContent
               }
             }
 
-            // If we have tool calls, execute them and continue
             if (toolCalls.length > 0) {
-              // Add assistant message with tool calls
-              conversationMessages.push({
+              // Add assistant message with tool calls to conversation
+              const assistantMsg: StoredMessage = {
                 role: 'assistant',
                 content: assistantContent || null,
                 tool_calls: toolCalls.map(tc => ({
@@ -326,9 +472,11 @@ export async function POST(request: NextRequest) {
                   type: 'function' as const,
                   function: tc.function
                 }))
-              })
+              }
+              conversationMessages.push(assistantMsg as OpenAI.Chat.Completions.ChatCompletionMessageParam)
+              fullConversation.push(assistantMsg)
 
-              // Execute each tool and add results
+              // Execute tools
               for (const tc of toolCalls) {
                 controller.enqueue(encoder.encode(`data: ${JSON.stringify({
                   type: 'tool_call',
@@ -345,28 +493,72 @@ export async function POST(request: NextRequest) {
                   status: 'complete'
                 })}\n\n`))
 
-                conversationMessages.push({
+                const toolMsg: StoredMessage = {
                   role: 'tool',
-                  tool_call_id: tc.id,
-                  content: result
-                })
+                  content: result,
+                  tool_call_id: tc.id
+                }
+                conversationMessages.push(toolMsg as OpenAI.Chat.Completions.ChatCompletionMessageParam)
+                fullConversation.push(toolMsg)
               }
-              // Continue the loop to get Kimi's response after tool results
+
+              // After using cache once, we need to send tools again for subsequent calls
+              toolsToSend = tools
             } else {
               continueLoop = false
+              finalAssistantContent = assistantContent
             }
           } catch (error: unknown) {
             const errorMessage = error instanceof Error ? error.message : String(error)
-            const errorDetails = error instanceof Error && 'response' in error
-              ? JSON.stringify((error as { response?: unknown }).response)
-              : ''
-            console.error(`Chat API error (${provider}):`, errorMessage, errorDetails)
+            console.error('Chat API error:', errorMessage)
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({
               type: 'error',
-              error: `${errorMessage}${errorDetails ? ' - ' + errorDetails : ''}`
+              error: errorMessage
             })}\n\n`))
             continueLoop = false
           }
+        }
+
+        // Add final assistant response to conversation
+        if (finalAssistantContent) {
+          fullConversation.push({ role: 'assistant', content: finalAssistantContent })
+        }
+
+        // Save conversation and create cache
+        if (newSessionId) {
+          // Build messages for cache (full conversation with system prompt)
+          const messagesForCache: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+            { role: 'system', content: systemPrompt },
+            ...fullConversation.map(m => ({
+              role: m.role,
+              content: m.content,
+              tool_calls: m.tool_calls,
+              tool_call_id: m.tool_call_id
+            } as OpenAI.Chat.Completions.ChatCompletionMessageParam))
+          ]
+
+          // Delete old cache if exists
+          if (session?.cache_id) {
+            await deleteCache(session.cache_id)
+          }
+
+          // Create new cache
+          const cacheResult = await createCache(
+            messagesForCache,
+            tools,
+            `bloom-session-${newSessionId}`
+          )
+
+          // Update session in database
+          await supabase
+            .from('chat_sessions')
+            .update({
+              messages: fullConversation,
+              cache_id: cacheResult?.cacheId || null,
+              cache_expires_at: cacheResult?.expiresAt?.toISOString() || null,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', newSessionId)
         }
 
         controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'done' })}\n\n`))
