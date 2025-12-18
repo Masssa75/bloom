@@ -388,12 +388,16 @@ supabase db pull
 
 ## Next Steps
 
-1. **Chat History Persistence** - Save conversations to database
+1. **Re-enable Groq when tool calling improves** - Groq is 40x faster than Moonshot but currently has unreliable tool calling. Monitor their updates and re-add as an option when fixed.
 
-2. **Generate context_index** - Auto-generate from content_items
+2. **Chat History Persistence** - Save conversations to database
 
-3. **More Children** - Import Amelia, other case files
+3. **Generate context_index** - Auto-generate from content_items
 
-4. **AI-Guided Interviews** - Structured interview flow with AI
+4. **More Children** - Import Amelia, other case files
 
-5. **Progress Tracking** - Track improvements over time
+5. **AI-Guided Interviews** - Structured interview flow with AI
+
+6. **Progress Tracking** - Track improvements over time
+
+7. **Incident Reporting via Chat** - Natural conversation to log incidents
