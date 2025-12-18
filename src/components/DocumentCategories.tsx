@@ -10,6 +10,7 @@ interface ContentItem {
   title: string
   one_liner: string | null
   created_at: string
+  weight: number | null
   metadata: {
     priority?: string
   } | null
@@ -116,16 +117,25 @@ export default function DocumentCategories({
 
               {isExpanded && (
                 <div className="bg-white divide-y divide-gray-100">
-                  {docs.map(doc => (
+                  {docs
+                    .sort((a, b) => (b.weight || 3) - (a.weight || 3))
+                    .map(doc => (
                     <Link
                       key={doc.id}
                       href={`/child/${childId}/doc/${doc.id}`}
                       className="block px-4 py-3 hover:bg-gray-50 transition-colors"
                     >
-                      <h4 className="font-medium text-gray-800 text-sm">{doc.title}</h4>
-                      {doc.one_liner && (
-                        <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{doc.one_liner}</p>
-                      )}
+                      <div className="flex items-start gap-2">
+                        {doc.weight && doc.weight >= 5 && (
+                          <span className="text-amber-500 text-xs mt-0.5">★</span>
+                        )}
+                        <div className="flex-1">
+                          <h4 className="font-medium text-gray-800 text-sm">{doc.title}</h4>
+                          {doc.one_liner && (
+                            <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{doc.one_liner}</p>
+                          )}
+                        </div>
+                      </div>
                     </Link>
                   ))}
                 </div>
@@ -160,16 +170,25 @@ export default function DocumentCategories({
 
             {expandedCategories.has('other') && (
               <div className="bg-white divide-y divide-gray-100">
-                {uncategorizedDocs.map(doc => (
+                {uncategorizedDocs
+                  .sort((a, b) => (b.weight || 3) - (a.weight || 3))
+                  .map(doc => (
                   <Link
                     key={doc.id}
                     href={`/child/${childId}/doc/${doc.id}`}
                     className="block px-4 py-3 hover:bg-gray-50 transition-colors"
                   >
-                    <h4 className="font-medium text-gray-800 text-sm">{doc.title}</h4>
-                    {doc.one_liner && (
-                      <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{doc.one_liner}</p>
-                    )}
+                    <div className="flex items-start gap-2">
+                      {doc.weight && doc.weight >= 5 && (
+                        <span className="text-amber-500 text-xs mt-0.5">★</span>
+                      )}
+                      <div className="flex-1">
+                        <h4 className="font-medium text-gray-800 text-sm">{doc.title}</h4>
+                        {doc.one_liner && (
+                          <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{doc.one_liner}</p>
+                        )}
+                      </div>
+                    </div>
                   </Link>
                 ))}
               </div>

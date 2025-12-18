@@ -15,128 +15,153 @@ const MICHAEL_CHILD_ID = 'c8b85995-d7d7-4380-8697-d0045aa58b8b'
 const DOCS_PATH = '/Users/marcschwyn/Desktop/projects/BambooValley/behavioral-assessments'
 
 // Define document metadata for better categorization
-const documentMeta: Record<string, { title: string, subtype: string, oneLiner: string, priority?: string }> = {
+// Weight scale: 5 = essential daily, 4 = frequently needed, 3 = regular use, 2 = occasional, 1 = archival
+const documentMeta: Record<string, { title: string, subtype: string, oneLiner: string, priority?: string, weight: number }> = {
   'michael-quick-reference.html': {
     title: 'Quick Reference Guide',
     subtype: 'quick_reference',
     oneLiner: 'Essential strategies and key information for daily interactions',
-    priority: 'high'
+    priority: 'high',
+    weight: 5
   },
   'michael-one-page.html': {
     title: 'One-Page Summary',
     subtype: 'case_overview',
     oneLiner: 'Concise overview of Michael\'s profile and support needs',
-    priority: 'high'
+    priority: 'high',
+    weight: 5
   },
   'michael-case-overview.html': {
     title: 'Case Overview',
     subtype: 'case_overview',
-    oneLiner: 'Comprehensive summary of behavioral patterns and support strategies'
+    oneLiner: 'Comprehensive summary of behavioral patterns and support strategies',
+    weight: 4
   },
   'michael-alsup-assessment.html': {
     title: 'ALSUP Assessment',
     subtype: 'framework_analysis',
-    oneLiner: 'Assessment of Lagging Skills and Unsolved Problems'
+    oneLiner: 'Assessment of Lagging Skills and Unsolved Problems',
+    weight: 4
   },
   'michael-behavior-contract.html': {
     title: 'Behavior Contract',
     subtype: 'intervention_guide',
-    oneLiner: 'Agreed behavioral expectations and support commitments'
+    oneLiner: 'Agreed behavioral expectations and support commitments',
+    weight: 4
   },
   'michael-case-log.md': {
     title: 'Case Log',
     subtype: 'case_log',
-    oneLiner: 'Chronological record of incidents and progress'
+    oneLiner: 'Chronological record of incidents and progress',
+    weight: 2
   },
   'michael-child-interview-plan.html': {
     title: 'Child Interview Plan',
     subtype: 'interview_guide',
-    oneLiner: 'Guide for conducting supportive conversations with Michael'
+    oneLiner: 'Guide for conducting supportive conversations with Michael',
+    weight: 2
   },
   'michael-consequence-refusal-understanding.html': {
     title: 'Understanding Consequence Refusal',
     subtype: 'framework_analysis',
-    oneLiner: 'Analysis of resistance to consequences and CPS approach'
+    oneLiner: 'Analysis of resistance to consequences and CPS approach',
+    weight: 4
   },
   'michael-daily-one-on-one-guide.html': {
     title: 'Daily One-on-One Guide',
     subtype: 'intervention_guide',
-    oneLiner: 'Structure for daily check-ins and relationship building'
+    oneLiner: 'Structure for daily check-ins and relationship building',
+    weight: 5
   },
   'michael-enza-boundary-script.html': {
     title: 'Boundary Script (Enza)',
     subtype: 'intervention_guide',
-    oneLiner: 'Scripted responses for maintaining boundaries with empathy'
+    oneLiner: 'Scripted responses for maintaining boundaries with empathy',
+    weight: 4
   },
   'michael-framework-analysis-v2.html': {
     title: 'Framework Analysis (Updated)',
     subtype: 'framework_analysis',
-    oneLiner: 'Multi-framework behavioral analysis with CPS focus'
+    oneLiner: 'Multi-framework behavioral analysis with CPS focus',
+    weight: 3
   },
   'michael-framework-analysis.html': {
     title: 'Framework Analysis (Original)',
     subtype: 'framework_analysis',
-    oneLiner: 'Initial multi-framework behavioral assessment'
+    oneLiner: 'Initial multi-framework behavioral assessment',
+    weight: 2
   },
   'michael-gifted-cognitive-profile.html': {
     title: 'Gifted Cognitive Profile',
     subtype: 'framework_analysis',
-    oneLiner: 'Understanding asynchronous development and 2e characteristics'
+    oneLiner: 'Understanding asynchronous development and 2e characteristics',
+    weight: 4
   },
   'michael-interventions.html': {
     title: 'Intervention Strategies',
     subtype: 'intervention_guide',
-    oneLiner: 'Comprehensive guide to support strategies and approaches'
+    oneLiner: 'Comprehensive guide to support strategies and approaches',
+    weight: 4
   },
   'michael-interview-guide.html': {
     title: 'Interview Guide',
     subtype: 'interview_guide',
-    oneLiner: 'Framework for gathering information about Michael'
+    oneLiner: 'Framework for gathering information about Michael',
+    weight: 2
   },
   'michael-interview-transcript.html': {
     title: 'Interview Transcript',
     subtype: 'session_transcript',
-    oneLiner: 'Record of parent/teacher interview sessions'
+    oneLiner: 'Record of parent/teacher interview sessions',
+    weight: 1
   },
   'michael-mother-interview-plan.html': {
     title: 'Mother Interview Plan',
     subtype: 'interview_guide',
-    oneLiner: 'Guide for parent interview to gather background'
+    oneLiner: 'Guide for parent interview to gather background',
+    weight: 2
   },
   'michael-observation-checklist.html': {
     title: 'Observation Checklist',
     subtype: 'observation_tool',
-    oneLiner: 'Structured observation framework across settings'
+    oneLiner: 'Structured observation framework across settings',
+    weight: 3
   },
   'michael-parent-meeting-package.html': {
     title: 'Parent Meeting Package',
     subtype: 'parent_communication',
-    oneLiner: 'Materials for parent collaboration meeting'
+    oneLiner: 'Materials for parent collaboration meeting',
+    weight: 3
   },
   'michael-parent-meeting-package-ru.html': {
     title: 'Parent Meeting Package (Russian)',
     subtype: 'parent_communication',
-    oneLiner: 'Parent materials translated to Russian'
+    oneLiner: 'Parent materials translated to Russian',
+    weight: 2
   },
   'michael-plan-b-conversation-guide.html': {
     title: 'Plan B Conversation Guide',
     subtype: 'intervention_guide',
-    oneLiner: 'CPS Plan B collaborative problem-solving scripts'
+    oneLiner: 'CPS Plan B collaborative problem-solving scripts',
+    weight: 5
   },
   'michael-plan-b-explosive-reactions.html': {
     title: 'Managing Explosive Reactions',
     subtype: 'intervention_guide',
-    oneLiner: 'Strategies for de-escalation and emotional regulation support'
+    oneLiner: 'Strategies for de-escalation and emotional regulation support',
+    weight: 5
   },
   'michael-repair-without-reward.html': {
     title: 'Repair Without Reward',
     subtype: 'intervention_guide',
-    oneLiner: 'Rebuilding connection after conflicts without reinforcement'
+    oneLiner: 'Rebuilding connection after conflicts without reinforcement',
+    weight: 4
   },
   'michael-rough-play-assessment.html': {
     title: 'Rough Play Assessment',
     subtype: 'framework_analysis',
-    oneLiner: 'Analysis of physical play behaviors and sensory needs'
+    oneLiner: 'Analysis of physical play behaviors and sensory needs',
+    weight: 3
   }
 }
 
@@ -189,6 +214,7 @@ async function importDocuments() {
         title: meta.title,
         one_liner: meta.oneLiner,
         full_content: content,
+        weight: meta.weight,
         metadata: {
           priority: meta.priority || 'normal',
           content_type: contentType,

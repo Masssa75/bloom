@@ -11,6 +11,7 @@ interface ContentItem {
   title: string
   one_liner: string | null
   created_at: string
+  weight: number | null
   metadata: {
     priority?: string
     severity?: string
@@ -42,8 +43,9 @@ export default async function ChildProfilePage({
   // Get all content items for this child
   const { data: contentItems } = await supabase
     .from('content_items')
-    .select('id, type, subtype, title, one_liner, created_at, metadata')
+    .select('id, type, subtype, title, one_liner, created_at, weight, metadata')
     .eq('child_id', id)
+    .order('weight', { ascending: false, nullsFirst: false })
     .order('created_at', { ascending: false })
 
   // Separate and prioritize content
