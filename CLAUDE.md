@@ -354,21 +354,29 @@ supabase db pull
   - Moonshot: Works reliably but slower
   - Removed provider toggle, defaulted to Moonshot only
 - Implemented AI-driven component toolkit:
-  - AI given HTML-like components: `<urgent>`, `<script>`, `<later>`, `<note>`
+  - Components: `<urgent>`, `<script>`, `<later>`, `<insight>`, `<note>`
   - AI decides which components to use based on context
-  - Components render as colored cards (red urgent, blue script, etc.)
+  - Components render as colored cards (red, blue, green, gray)
   - Externalized to `/src/lib/chat/components.ts` for easy modification
   - Prompt and parser auto-update when components added
+- Added markdown rendering for plain text:
+  - Bullet lists (`- item`) render as proper `<ul>` lists
+  - Bold text (`**bold**`) renders as `<strong>`
+- Added incomplete response detection:
+  - Tracks if server sent 'done' event
+  - Detects when tool calls succeed but response cut off
+  - Orange highlight for incomplete messages
+  - Retry button repopulates input for resending
 - Added UI improvements:
   - Auto-expanding textarea (grows as you type)
   - Tool call badges shown separately from response text
+  - Brief status messages guideline ("Checking profile..." not verbose)
 - Created design-mockups.html with 6 UI options (chose Option 1: Action Cards)
 
 **Architecture decision:** Giving AI a "toolkit" is better than rigid formats because:
 - AI semantically decides presentation based on meaning
 - No parsing failures if format slightly varies
 - Easy to add new components without changing prompt structure
-- Shorter prompt (~80 words less)
 
 **Note:** Groq is 40x faster but has unreliable tool calling. Re-enable when they fix it.
 
