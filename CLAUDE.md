@@ -6,7 +6,7 @@
 - Store and organize behavioral case files and assessments
 - Report and track behavioral incidents
 - Collaborate with multiple caregivers on a child's profile
-- (Coming soon) Get AI-powered guidance using case context
+- Get AI-powered guidance using case context (Kimi K2 integration)
 
 **Live URL:** https://bloom.wunderkind.world
 **GitHub:** https://github.com/Masssa75/bloom
@@ -22,20 +22,21 @@
 - **Document Viewer**: View HTML/markdown case files
 - **Collaborator Invites**: Invite others by email, auto-accept on signup
 - **Document Organization**: Collapsible categories, weight-based sorting
+- **AI Chat**: Kimi K2 integration with tool calling for case file access
 - **Playwright Tests**: E2E tests for add-child and invite flows
 
 ### What's NOT Built Yet ❌
-- AI Chat (the main feature - needs Kimi K2 integration)
 - AI-guided interviews
 - Framework analysis generation
 - Progress tracking over time
+- Chat history persistence
 
 ## Tech Stack
 
 - **Frontend:** Next.js 16.0.10 with TypeScript + Tailwind CSS
 - **Database:** Supabase (PostgreSQL)
 - **Auth:** Supabase Auth
-- **AI:** (Planned) Claude API + Kimi K2 (Moonshot) with web search
+- **AI:** Kimi K2 (Moonshot) with tool calling + web search
 - **Deployment:** Netlify
 - **Testing:** Playwright
 
@@ -164,8 +165,11 @@ bloom/
 │   │   │   ├── [id]/page.tsx             # Child profile with docs
 │   │   │   └── [id]/doc/[docId]/page.tsx # Document viewer
 │   │   └── api/
-│   │       └── invite/route.ts           # Invite management API
+│   │       ├── chat/route.ts             # AI chat with Kimi K2
+│   │       ├── invite/route.ts           # Invite management API
+│   │       └── kimi/child/[childId]/     # Kimi document access API
 │   ├── components/
+│   │   ├── ChatInterface.tsx             # Floating chat UI
 │   │   ├── CollaboratorsSection.tsx      # Invite & manage collaborators
 │   │   ├── DocumentCategories.tsx        # Collapsible doc categories
 │   │   └── PendingInvitations.tsx        # Accept/decline invites
@@ -236,6 +240,34 @@ export function createClient() {
 
 Documents sorted by weight within each category.
 
+### AI Chat Integration (Kimi K2)
+
+The chat feature uses Kimi K2 with tool calling to access case files:
+
+**Architecture:**
+1. User sends message via floating chat UI
+2. `/api/chat` calls Kimi K2 with tool definitions
+3. Kimi decides which documents to fetch
+4. Tool calls executed against Supabase
+5. Kimi synthesizes response with case context
+6. Streaming response displayed to user
+
+**Available Tools:**
+- `get_child_overview` - Returns child profile + document list
+- `get_document` - Fetches full content of specific document
+- `web_search` - Search web for behavioral strategies
+
+**API Endpoints for Kimi:**
+```
+GET /api/kimi/child/[childId]                    # Child info + doc list
+GET /api/kimi/child/[childId]/documents          # List with filters
+GET /api/kimi/child/[childId]/documents/[docId]  # Full document
+POST /api/kimi/child/[childId]/documents         # Batch fetch by IDs
+```
+
+**Authentication:** API key via `?api_key=` or `x-api-key` header
+**Env var:** `KIMI_API_KEY` (for external access)
+
 ---
 
 ## Autonomous Development Workflow
@@ -282,6 +314,24 @@ supabase db pull
 ---
 
 ## Session Log
+
+### Session - December 18, 2025 (AI Chat): Main Feature Complete
+
+**Completed:**
+- Built AI Chat with Kimi K2 integration
+  - `/api/chat` route with streaming + tool calling loop
+  - `ChatInterface` floating component on child profile
+  - Tools: get_child_overview, get_document, web_search
+  - Kimi fetches relevant case files to answer questions
+- Created Kimi API endpoints for document access:
+  - `/api/kimi/child/[childId]` - child overview + doc list
+  - `/api/kimi/child/[childId]/documents` - list/batch fetch
+  - `/api/kimi/child/[childId]/documents/[docId]` - single doc
+- Added KIMI_API_KEY for external API access
+
+**The main product feature is now live!**
+
+---
 
 ### Session - December 18, 2025 (Continued): Features & Polish
 
@@ -338,13 +388,12 @@ supabase db pull
 
 ## Next Steps
 
-1. **AI Chat Feature** - Main value proposition
-   - Load child's context_index + relevant content
-   - Integrate with Kimi K2 for web search
-   - Provide context-aware guidance
+1. **Chat History Persistence** - Save conversations to database
 
 2. **Generate context_index** - Auto-generate from content_items
 
 3. **More Children** - Import Amelia, other case files
 
-4. **Progress Tracking** - Track improvements over time
+4. **AI-Guided Interviews** - Structured interview flow with AI
+
+5. **Progress Tracking** - Track improvements over time
