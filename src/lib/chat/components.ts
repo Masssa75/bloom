@@ -66,7 +66,8 @@ ${componentLines}
 - Informational questions: use <insight> for the key takeaway, <note> for supporting context
 - Use markdown lists (- item) for bullet points
 - Keep responses concise - teachers are busy and stressed
-- <script> must be words they can read aloud exactly`
+- <script> must be words they can read aloud exactly
+- When fetching documents, keep status messages extremely brief (e.g., "Checking profile..." not "Let me get Michael's profile and context first to give you a well-informed answer.")`
 }
 
 /**
