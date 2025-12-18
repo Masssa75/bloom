@@ -350,6 +350,65 @@ git add -A && git commit -m "feat: description" && git push origin main
 
 ## Session Log
 
+### Session - December 18, 2025: MVP Implementation
+
+**Status:** Completed
+
+**Completed:**
+- Redesigned database schema with "index + content" pattern:
+  - `children` table: Added `context_index` field (like CLAUDE.md per child)
+  - `content_items` table: Unified content storage (incidents, sessions, documents)
+  - Dropped old `sessions` and `documents` tables
+- Migrated Michael's case files (16 documents) from BambooValley/behavioral-assessments
+- Built complete MVP UI:
+  - Landing page with feature highlights
+  - Auth flow (login/signup with Supabase Auth)
+  - Dashboard with child list and quick actions
+  - Incident reporting form (mobile-optimized with severity levels)
+  - Child profile view with:
+    - Quick reference documents (prioritized)
+    - Recent incidents
+    - Documents & analysis
+    - Interview sessions
+  - Document viewer (supports HTML, markdown, structured incident data)
+- Updated Next.js 16.0.5 → 16.0.10 for security patch
+- Deployed to production: https://bloom.wunderkind.world
+
+**Data Model:**
+```
+children:
+  - id, name, age, context_index (CLAUDE.md equivalent)
+
+content_items:
+  - child_id, type (incident/session/document)
+  - one_liner (for index), summary (for AI context), full_content
+  - metadata (severity, priority, etc.)
+```
+
+**AI Context Strategy:**
+1. Teacher selects child(ren), asks question
+2. System loads context_index for each child
+3. AI reads indexes, decides which content to load
+4. AI responds with context-aware guidance
+
+**Files Created:**
+- `src/app/login/page.tsx` - Auth UI
+- `src/app/dashboard/page.tsx` - Child list
+- `src/app/incident/new/page.tsx` - Incident form
+- `src/app/child/[id]/page.tsx` - Child profile
+- `src/app/child/[id]/doc/[docId]/page.tsx` - Document viewer
+- `src/lib/supabase/*` - Supabase client utilities
+- `src/middleware.ts` - Auth middleware
+- `scripts/migrate-michael.ts` - Case file migration script
+- `supabase/migrations/20251218000000_content_items_schema.sql`
+
+**Next Steps:**
+1. User tests on Kimi K2 console to finalize AI prompts
+2. Implement AI chat feature
+3. Add more children and case files as needed
+
+---
+
 ### Session - December 3, 2025: Deployment Verification & Research
 **Status:** Completed (session crashed, wrapped by new instance)
 
