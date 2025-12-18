@@ -23,8 +23,9 @@
 - **Collaborator Invites**: Invite others by email, auto-accept on signup
 - **Document Organization**: Collapsible categories, weight-based sorting
 - **AI Chat**: Kimi K2 (Moonshot) with tool calling for case file access
-  - AI-driven component toolkit (`<urgent>`, `<script>`, `<later>`, `<note>`)
-  - AI decides which components to use based on context
+  - Component toolkit: `<urgent>`, `<script>`, `<later>`, `<insight>`, `<note>`
+  - Markdown rendering (lists, bold) in plain text
+  - Incomplete response detection with retry button
   - Auto-expanding input, tool call badges
 - **Playwright Tests**: E2E tests for add-child and invite flows
 
@@ -199,6 +200,9 @@ bloom/
 For Playwright tests and manual testing:
 - **Email:** claude-test@bloom.wunderkind.world
 - **Password:** TestPassword123!
+
+**Test Data:**
+- **Michael's child_id:** `c8b85995-d7d7-4380-8697-d0045aa58b8b`
 
 ## Useful Scripts
 
