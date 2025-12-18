@@ -408,6 +408,7 @@ export async function POST(request: NextRequest) {
 
         while (continueLoop && iterations < maxIterations) {
           iterations++
+          console.log(`Starting iteration ${iterations}, messages: ${conversationMessages.length}, tools: ${toolsToSend.length}`)
 
           try {
             const createParams: OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming = {
@@ -524,16 +525,19 @@ export async function POST(request: NextRequest) {
 
               // After using cache once, we need to send tools again for subsequent calls
               toolsToSend = tools
+              console.log(`Iteration ${iterations} done - executed ${toolCalls.length} tools, continuing loop`)
             } else {
+              console.log(`Iteration ${iterations} done - no tool calls, finishing`)
               continueLoop = false
               finalAssistantContent = assistantContent
             }
           } catch (error: unknown) {
             const errorMessage = error instanceof Error ? error.message : String(error)
-            console.error('Chat API error:', errorMessage)
+            const errorStack = error instanceof Error ? error.stack : ''
+            console.error('Chat API error:', errorMessage, errorStack)
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({
               type: 'error',
-              error: errorMessage
+              error: `${errorMessage} (iteration ${iterations})`
             })}\n\n`))
             continueLoop = false
           }
@@ -544,44 +548,58 @@ export async function POST(request: NextRequest) {
           fullConversation.push({ role: 'assistant', content: finalAssistantContent })
         }
 
-        // Save conversation and create cache
+        // Send done BEFORE cache operations (so client isn't waiting)
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'done' })}\n\n`))
+
+        // Save conversation and create cache (don't block client)
         if (newSessionId) {
-          // Build messages for cache (full conversation with system prompt)
-          const messagesForCache: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
-            { role: 'system', content: systemPrompt },
-            ...fullConversation.map(m => ({
-              role: m.role,
-              content: m.content,
-              tool_calls: m.tool_calls,
-              tool_call_id: m.tool_call_id
-            } as OpenAI.Chat.Completions.ChatCompletionMessageParam))
-          ]
+          try {
+            // Build messages for cache (full conversation with system prompt)
+            const messagesForCache: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
+              { role: 'system', content: systemPrompt },
+              ...fullConversation.map(m => ({
+                role: m.role,
+                content: m.content,
+                tool_calls: m.tool_calls,
+                tool_call_id: m.tool_call_id
+              } as OpenAI.Chat.Completions.ChatCompletionMessageParam))
+            ]
 
-          // Delete old cache if exists
-          if (session?.cache_id) {
-            await deleteCache(session.cache_id)
+            // Delete old cache if exists
+            if (session?.cache_id) {
+              await deleteCache(session.cache_id)
+            }
+
+            // Create new cache (optional - if fails, just save without cache)
+            const cacheResult = await createCache(
+              messagesForCache,
+              tools,
+              `bloom-session-${newSessionId}`
+            )
+
+            // Update session in database
+            await supabase
+              .from('chat_sessions')
+              .update({
+                messages: fullConversation,
+                cache_id: cacheResult?.cacheId || null,
+                cache_expires_at: cacheResult?.expiresAt?.toISOString() || null,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', newSessionId)
+          } catch (cacheError) {
+            console.error('Cache/save error (non-blocking):', cacheError)
+            // Still save conversation even if cache fails
+            await supabase
+              .from('chat_sessions')
+              .update({
+                messages: fullConversation,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', newSessionId)
           }
-
-          // Create new cache
-          const cacheResult = await createCache(
-            messagesForCache,
-            tools,
-            `bloom-session-${newSessionId}`
-          )
-
-          // Update session in database
-          await supabase
-            .from('chat_sessions')
-            .update({
-              messages: fullConversation,
-              cache_id: cacheResult?.cacheId || null,
-              cache_expires_at: cacheResult?.expiresAt?.toISOString() || null,
-              updated_at: new Date().toISOString()
-            })
-            .eq('id', newSessionId)
         }
 
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'done' })}\n\n`))
         controller.close()
       }
     })
