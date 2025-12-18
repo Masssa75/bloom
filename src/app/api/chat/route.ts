@@ -8,10 +8,10 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 )
 
-// Kimi K2 client (OpenAI-compatible)
-const kimi = new OpenAI({
-  apiKey: process.env.MOONSHOT_API_KEY,
-  baseURL: 'https://api.moonshot.ai/v1'
+// Kimi K2 via GroqCloud (faster + automatic caching)
+const groq = new OpenAI({
+  apiKey: process.env.GROQ_API_KEY,
+  baseURL: 'https://api.groq.com/openai/v1'
 })
 
 // Tool definitions for Kimi
@@ -54,23 +54,6 @@ const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
       }
     }
   },
-  {
-    type: 'function',
-    function: {
-      name: 'web_search',
-      description: 'Search the web for additional information about child behavioral strategies, research, or techniques.',
-      parameters: {
-        type: 'object',
-        properties: {
-          query: {
-            type: 'string',
-            description: 'What to search for'
-          }
-        },
-        required: ['query']
-      }
-    }
-  }
 ]
 
 // Execute tool calls
@@ -130,14 +113,6 @@ async function executeTool(name: string, args: Record<string, string>): Promise<
       })
     }
 
-    if (name === 'web_search') {
-      // For web search, we'll let Kimi use its native capability
-      // Just return a note that this is handled by Kimi's built-in search
-      return JSON.stringify({
-        note: 'Web search will be performed by Kimi. Query: ' + args.query
-      })
-    }
-
     return JSON.stringify({ error: 'Unknown tool: ' + name })
   } catch (error) {
     return JSON.stringify({ error: String(error) })
@@ -156,7 +131,6 @@ You have tools to access ${childName}'s case files:
 
 1. **get_child_overview** - Call this FIRST to see ${childName}'s profile, context summary, and list of available documents
 2. **get_document** - Fetch specific documents that are relevant to the question
-3. **web_search** - Search for additional behavioral research or strategies if needed
 
 ## Workflow
 
@@ -214,8 +188,8 @@ export async function POST(request: NextRequest) {
           iterations++
 
           try {
-            const response = await kimi.chat.completions.create({
-              model: 'kimi-k2-0711-preview',
+            const response = await groq.chat.completions.create({
+              model: 'moonshotai/kimi-k2-instruct',
               messages: conversationMessages,
               tools,
               temperature: 0.6,
