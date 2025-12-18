@@ -403,6 +403,14 @@ export default function ChatPage({ children, userId }: ChatPageProps) {
                 }
               }
 
+              if (data.type === 'error') {
+                console.error('❌ API ERROR:', data.error)
+              }
+
+              if (data.type === 'done') {
+                console.log('✅ Stream completed')
+              }
+
               if (data.type === 'content') {
                 assistantContent += data.content
                 setMessages(prev => {
