@@ -24,143 +24,93 @@ interface ChatPageProps {
   children: Child[]
 }
 
-interface ParsedResponse {
-  rightNow: string[] | null
-  sayThis: string | null
-  later: { title: string; content: string } | null
-  plainText: string | null
+interface ParsedComponent {
+  type: 'urgent' | 'script' | 'later' | 'note' | 'text'
+  content: string
+  title?: string // for 'later' type
 }
 
-function parseStructuredResponse(content: string): ParsedResponse {
-  const result: ParsedResponse = {
-    rightNow: null,
-    sayThis: null,
-    later: null,
-    plainText: null
+function parseComponentResponse(content: string): ParsedComponent[] {
+  const components: ParsedComponent[] = []
+
+  // Regex to match our custom components
+  const componentRegex = /<(urgent|script|later|note)(?:\s+title="([^"]*)")?>([\s\S]*?)<\/\1>/g
+
+  let lastIndex = 0
+  let match
+
+  while ((match = componentRegex.exec(content)) !== null) {
+    // Add any text before this component
+    const textBefore = content.slice(lastIndex, match.index).trim()
+    if (textBefore) {
+      components.push({ type: 'text', content: textBefore })
+    }
+
+    const [, type, title, innerContent] = match
+    components.push({
+      type: type as ParsedComponent['type'],
+      content: innerContent.trim(),
+      title: title || undefined
+    })
+
+    lastIndex = match.index + match[0].length
   }
 
-  // Check if content has structured format
-  const hasStructure = content.includes(':::RIGHT_NOW') || content.includes(':::SAY_THIS')
-
-  if (!hasStructure) {
-    result.plainText = content
-    return result
+  // Add any remaining text after last component
+  const textAfter = content.slice(lastIndex).trim()
+  if (textAfter) {
+    components.push({ type: 'text', content: textAfter })
   }
 
-  // Parse RIGHT_NOW section
-  const rightNowMatch = content.match(/:::RIGHT_NOW\n([\s\S]*?):::/m)
-  if (rightNowMatch) {
-    const items = rightNowMatch[1]
-      .split('\n')
-      .map(line => line.replace(/^[-•]\s*/, '').trim())
-      .filter(line => line.length > 0)
-    result.rightNow = items
+  // If no components found, treat entire content as text
+  if (components.length === 0) {
+    components.push({ type: 'text', content: content })
   }
 
-  // Parse SAY_THIS section
-  const sayThisMatch = content.match(/:::SAY_THIS\n([\s\S]*?):::/m)
-  if (sayThisMatch) {
-    result.sayThis = sayThisMatch[1].trim().replace(/^[""]|[""]$/g, '').replace(/^"|"$/g, '')
-  }
-
-  // Parse LATER section
-  const laterMatch = content.match(/:::LATER\n([\s\S]*?):::/m)
-  if (laterMatch) {
-    const laterContent = laterMatch[1].trim()
-    const titleMatch = laterContent.match(/^\*\*(.+?)\*\*/)
-    const title = titleMatch ? titleMatch[1] : 'Follow-up'
-    const content = titleMatch ? laterContent.replace(/^\*\*.+?\*\*\n?/, '').trim() : laterContent
-    result.later = { title, content }
-  }
-
-  // Get any remaining plain text (outside structured sections)
-  let plainText = content
-    .replace(/:::RIGHT_NOW[\s\S]*?:::/gm, '')
-    .replace(/:::SAY_THIS[\s\S]*?:::/gm, '')
-    .replace(/:::LATER[\s\S]*?:::/gm, '')
-    .trim()
-
-  if (plainText) {
-    result.plainText = plainText
-  }
-
-  return result
+  return components
 }
 
-function StructuredResponse({ content, toolCalls }: { content: string; toolCalls?: ToolCall[] }) {
-  const [laterExpanded, setLaterExpanded] = useState(false)
-  const parsed = parseStructuredResponse(content)
-
-  // If no structured content, render as plain text
-  if (parsed.plainText && !parsed.rightNow && !parsed.sayThis && !parsed.later) {
-    return (
-      <div>
-        {toolCalls && toolCalls.length > 0 && (
-          <div className="flex flex-wrap gap-1.5 mb-2 pb-2 border-b border-gray-100">
-            {toolCalls.map((tc, i) => (
-              <span
-                key={i}
-                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${
-                  tc.status === 'complete'
-                    ? 'bg-green-50 text-green-700'
-                    : 'bg-blue-50 text-blue-700'
-                }`}
-              >
-                <span className="opacity-60">&lt;/&gt;</span>
-                {tc.name.replace(/_/g, ' ').replace(/get /i, '')}
-                {tc.status === 'complete' ? (
-                  <svg className="w-3 h-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                  </svg>
-                ) : (
-                  <div className="w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
-                )}
-              </span>
-            ))}
-          </div>
-        )}
-        <div className="whitespace-pre-wrap text-sm leading-relaxed">
-          {parsed.plainText}
-        </div>
-      </div>
-    )
-  }
+function ToolCallBadges({ toolCalls }: { toolCalls?: ToolCall[] }) {
+  if (!toolCalls || toolCalls.length === 0) return null
 
   return (
-    <div className="space-y-3">
-      {/* Tool calls badges */}
-      {toolCalls && toolCalls.length > 0 && (
-        <div className="flex flex-wrap gap-1.5 pb-2 border-b border-gray-100">
-          {toolCalls.map((tc, i) => (
-            <span
-              key={i}
-              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${
-                tc.status === 'complete'
-                  ? 'bg-green-50 text-green-700'
-                  : 'bg-blue-50 text-blue-700'
-              }`}
-            >
-              <span className="opacity-60">&lt;/&gt;</span>
-              {tc.name.replace(/_/g, ' ').replace(/get /i, '')}
-              {tc.status === 'complete' ? (
-                <svg className="w-3 h-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                </svg>
-              ) : (
-                <div className="w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
-              )}
-            </span>
-          ))}
-        </div>
-      )}
+    <div className="flex flex-wrap gap-1.5 mb-2 pb-2 border-b border-gray-100">
+      {toolCalls.map((tc, i) => (
+        <span
+          key={i}
+          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${
+            tc.status === 'complete'
+              ? 'bg-green-50 text-green-700'
+              : 'bg-blue-50 text-blue-700'
+          }`}
+        >
+          <span className="opacity-60">&lt;/&gt;</span>
+          {tc.name.replace(/_/g, ' ').replace(/get /i, '')}
+          {tc.status === 'complete' ? (
+            <svg className="w-3 h-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+          ) : (
+            <div className="w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+          )}
+        </span>
+      ))}
+    </div>
+  )
+}
 
-      {/* Any intro text */}
-      {parsed.plainText && (
-        <p className="text-sm text-gray-600">{parsed.plainText}</p>
-      )}
-
-      {/* RIGHT NOW card */}
-      {parsed.rightNow && (
+function ComponentRenderer({ component, laterExpanded, setLaterExpanded }: {
+  component: ParsedComponent
+  laterExpanded: boolean
+  setLaterExpanded: (v: boolean) => void
+}) {
+  switch (component.type) {
+    case 'urgent':
+      const urgentItems = component.content
+        .split('\n')
+        .map(line => line.replace(/^[-•*]\s*/, '').replace(/^\d+\.\s*/, '').trim())
+        .filter(line => line.length > 0)
+      return (
         <div className="bg-red-50 border-l-4 border-red-500 rounded-r-lg p-3">
           <div className="flex items-center gap-2 text-red-700 font-semibold text-sm mb-2">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -169,15 +119,16 @@ function StructuredResponse({ content, toolCalls }: { content: string; toolCalls
             Right Now
           </div>
           <ol className="text-sm space-y-1 text-gray-700 ml-6 list-decimal">
-            {parsed.rightNow.map((item, i) => (
+            {urgentItems.map((item, i) => (
               <li key={i}>{item}</li>
             ))}
           </ol>
         </div>
-      )}
+      )
 
-      {/* SAY THIS card */}
-      {parsed.sayThis && (
+    case 'script':
+      const scriptText = component.content.replace(/^[""]|[""]$/g, '').replace(/^"|"$/g, '')
+      return (
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
           <div className="text-blue-700 font-semibold text-sm mb-2 flex items-center gap-2">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -185,12 +136,12 @@ function StructuredResponse({ content, toolCalls }: { content: string; toolCalls
             </svg>
             Say This
           </div>
-          <p className="text-sm text-gray-700 italic">&ldquo;{parsed.sayThis}&rdquo;</p>
+          <p className="text-sm text-gray-700 italic">&ldquo;{scriptText}&rdquo;</p>
         </div>
-      )}
+      )
 
-      {/* LATER section - collapsible */}
-      {parsed.later && (
+    case 'later':
+      return (
         <div className="bg-gray-50 rounded-lg overflow-hidden">
           <button
             onClick={() => setLaterExpanded(!laterExpanded)}
@@ -199,7 +150,7 @@ function StructuredResponse({ content, toolCalls }: { content: string; toolCalls
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <span className="flex-1 text-left">Later: {parsed.later.title}</span>
+            <span className="flex-1 text-left">Later: {component.title || 'Follow-up'}</span>
             <svg
               className={`w-4 h-4 transition-transform ${laterExpanded ? 'rotate-180' : ''}`}
               fill="none"
@@ -211,11 +162,44 @@ function StructuredResponse({ content, toolCalls }: { content: string; toolCalls
           </button>
           {laterExpanded && (
             <div className="px-3 pb-3 text-sm text-gray-600 whitespace-pre-wrap">
-              {parsed.later.content}
+              {component.content}
             </div>
           )}
         </div>
-      )}
+      )
+
+    case 'note':
+      return (
+        <div className="bg-gray-100 border-l-2 border-gray-400 rounded-r px-3 py-2">
+          <p className="text-sm text-gray-600">{component.content}</p>
+        </div>
+      )
+
+    case 'text':
+    default:
+      return (
+        <div className="whitespace-pre-wrap text-sm leading-relaxed">
+          {component.content}
+        </div>
+      )
+  }
+}
+
+function StructuredResponse({ content, toolCalls }: { content: string; toolCalls?: ToolCall[] }) {
+  const [laterExpanded, setLaterExpanded] = useState(false)
+  const components = parseComponentResponse(content)
+
+  return (
+    <div className="space-y-3">
+      <ToolCallBadges toolCalls={toolCalls} />
+      {components.map((component, i) => (
+        <ComponentRenderer
+          key={i}
+          component={component}
+          laterExpanded={laterExpanded}
+          setLaterExpanded={setLaterExpanded}
+        />
+      ))}
     </div>
   )
 }
