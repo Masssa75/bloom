@@ -22,7 +22,9 @@
 - **Document Viewer**: View HTML/markdown case files
 - **Collaborator Invites**: Invite others by email, auto-accept on signup
 - **Document Organization**: Collapsible categories, weight-based sorting
-- **AI Chat**: Kimi K2 integration with tool calling for case file access
+- **AI Chat**: Kimi K2 (Moonshot) with tool calling for case file access
+  - Structured action cards for urgent questions (Right Now / Say This / Later)
+  - Auto-expanding input, tool call badges
 - **Playwright Tests**: E2E tests for add-child and invite flows
 
 ### What's NOT Built Yet ❌
@@ -159,6 +161,7 @@ bloom/
 │   │   ├── page.tsx                      # Landing page
 │   │   ├── login/page.tsx                # Auth (login/signup)
 │   │   ├── dashboard/page.tsx            # Child list + quick actions
+│   │   ├── chat/page.tsx                 # AI chat page
 │   │   ├── incident/new/page.tsx         # Report incident form
 │   │   ├── child/
 │   │   │   ├── new/page.tsx              # Add child form
@@ -169,7 +172,7 @@ bloom/
 │   │       ├── invite/route.ts           # Invite management API
 │   │       └── kimi/child/[childId]/     # Kimi document access API
 │   ├── components/
-│   │   ├── ChatInterface.tsx             # Floating chat UI
+│   │   ├── ChatPage.tsx                  # Full-page chat with action cards
 │   │   ├── CollaboratorsSection.tsx      # Invite & manage collaborators
 │   │   ├── DocumentCategories.tsx        # Collapsible doc categories
 │   │   └── PendingInvitations.tsx        # Accept/decline invites
@@ -240,22 +243,47 @@ export function createClient() {
 
 Documents sorted by weight within each category.
 
-### AI Chat Integration (Kimi K2)
+### AI Chat Integration (Kimi K2 via Moonshot)
 
 The chat feature uses Kimi K2 with tool calling to access case files:
 
 **Architecture:**
-1. User sends message via floating chat UI
-2. `/api/chat` calls Kimi K2 with tool definitions
+1. User sends message via `/chat` page
+2. `/api/chat` calls Kimi K2 (Moonshot) with tool definitions
 3. Kimi decides which documents to fetch
 4. Tool calls executed against Supabase
 5. Kimi synthesizes response with case context
-6. Streaming response displayed to user
+6. Streaming response displayed with action cards
 
 **Available Tools:**
 - `get_child_overview` - Returns child profile + document list
 - `get_document` - Fetches full content of specific document
-- `web_search` - Search web for behavioral strategies
+- `web_search` - Search web for behavioral strategies (Moonshot built-in)
+
+**Structured Response Format (for urgent questions):**
+```
+:::RIGHT_NOW
+- Immediate action 1
+- Immediate action 2
+:::
+
+:::SAY_THIS
+"Exact script to say to the child"
+:::
+
+:::LATER
+**Follow-up Title**
+1. Step when calm
+2. Next step
+:::
+```
+
+ChatPage parses these markers and renders as colored action cards.
+For conversational questions, plain text responses are used.
+
+**Provider Notes:**
+- **Moonshot (current)**: Reliable tool calling, has web search, slower
+- **Groq (disabled)**: 40x faster but unreliable tool calling - re-enable when fixed
 
 **API Endpoints for Kimi:**
 ```
@@ -314,6 +342,29 @@ supabase db pull
 ---
 
 ## Session Log
+
+### Session - December 18, 2025 (Chat UX): Structured Responses
+
+**Completed:**
+- Debugged provider issues:
+  - Groq: 413 token limit errors + unreliable tool calling
+  - Moonshot: Works reliably but slower
+  - Removed provider toggle, defaulted to Moonshot only
+- Implemented structured action card responses:
+  - System prompt returns `:::RIGHT_NOW`, `:::SAY_THIS`, `:::LATER` format
+  - ChatPage parses structured markdown into React components
+  - Red "Right Now" card - immediate actions (3-4 bullets max)
+  - Blue "Say This" card - exact script for the child
+  - Collapsible "Later" section - follow-up when calm
+  - Plain responses for conversational questions
+- Added UI improvements:
+  - Auto-expanding textarea (grows as you type)
+  - Tool call badges shown separately from response text
+- Created design-mockups.html with 6 UI options (chose Option 1)
+
+**Note:** Groq is 40x faster but has unreliable tool calling. Re-enable when they fix it.
+
+---
 
 ### Session - December 18, 2025 (AI Chat): Main Feature Complete
 
