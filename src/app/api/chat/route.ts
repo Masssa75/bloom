@@ -336,6 +336,7 @@ export async function POST(request: NextRequest) {
     if (cacheValid && session) {
       // Use cache - send cache reference + new message only
       console.log('Using cache:', session.cache_id)
+      // Will send cache event to client in stream
       conversationMessages = [
         {
           // Moonshot cache message format
@@ -397,6 +398,13 @@ export async function POST(request: NextRequest) {
             })}\n\n`))
           }
         }
+
+        // Send cache status to client
+        controller.enqueue(encoder.encode(`data: ${JSON.stringify({
+          type: 'cache_status',
+          using_cache: cacheValid,
+          cache_id: cacheValid ? session?.cache_id : null
+        })}\n\n`))
 
         while (continueLoop && iterations < maxIterations) {
           iterations++

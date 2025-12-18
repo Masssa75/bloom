@@ -375,7 +375,16 @@ export default function ChatPage({ children, userId }: ChatPageProps) {
 
               if (data.type === 'session') {
                 // New session created - save the ID for subsequent messages
+                console.log('📝 New session created:', data.sessionId)
                 setSessionId(data.sessionId)
+              }
+
+              if (data.type === 'cache_status') {
+                if (data.using_cache) {
+                  console.log('⚡ USING CACHE:', data.cache_id, '(saving tokens!)')
+                } else {
+                  console.log('🔄 No cache - sending full context')
+                }
               }
 
               if (data.type === 'content') {
