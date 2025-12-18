@@ -82,6 +82,27 @@ export default async function DashboardPage() {
         {/* Pending Invitations */}
         <PendingInvitations />
 
+        {/* Go to Chat CTA */}
+        <Link
+          href="/chat"
+          className="block mb-8 bg-blue-600 hover:bg-blue-700 text-white rounded-xl p-6 transition-colors"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0">
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
+            </div>
+            <div>
+              <h3 className="text-lg font-semibold">Go to AI Chat</h3>
+              <p className="text-blue-200 text-sm">Get instant guidance and support for any child</p>
+            </div>
+            <svg className="w-6 h-6 ml-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+            </svg>
+          </div>
+        </Link>
+
         <div className="flex items-center justify-between mb-8">
           <h2 className="text-2xl font-semibold text-gray-800">Children</h2>
           <Link
@@ -151,15 +172,18 @@ export default async function DashboardPage() {
               <p className="text-sm text-gray-500 mt-1">Log a new incident</p>
             </Link>
 
-            <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 opacity-50">
+            <Link
+              href="/chat"
+              className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 hover:shadow-md hover:border-blue-200 transition-all"
+            >
               <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center mb-3">
                 <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
                 </svg>
               </div>
               <h4 className="font-medium text-gray-800">AI Chat</h4>
-              <p className="text-sm text-gray-500 mt-1">Coming soon</p>
-            </div>
+              <p className="text-sm text-gray-500 mt-1">Get guidance and support</p>
+            </Link>
 
             <div className="bg-white rounded-xl p-6 shadow-sm border border-gray-100 opacity-50">
               <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center mb-3">

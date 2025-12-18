@@ -1,0 +1,453 @@
+'use client'
+
+import { useState, useRef, useEffect } from 'react'
+import Link from 'next/link'
+
+interface Child {
+  id: string
+  name: string
+  age?: number | null
+}
+
+interface Message {
+  role: 'user' | 'assistant'
+  content: string
+}
+
+interface ChatPageProps {
+  children: Child[]
+}
+
+export default function ChatPage({ children }: ChatPageProps) {
+  const [selectedChild, setSelectedChild] = useState<Child | null>(
+    children.length > 0 ? children[0] : null
+  )
+  const [messages, setMessages] = useState<Message[]>([])
+  const [input, setInput] = useState('')
+  const [isLoading, setIsLoading] = useState(false)
+  const [toolStatus, setToolStatus] = useState<string | null>(null)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [childSelectorOpen, setChildSelectorOpen] = useState(false)
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLTextAreaElement>(null)
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  useEffect(() => {
+    scrollToBottom()
+  }, [messages])
+
+  useEffect(() => {
+    // Focus input on load
+    inputRef.current?.focus()
+  }, [])
+
+  // Reset chat when child changes
+  useEffect(() => {
+    setMessages([])
+  }, [selectedChild?.id])
+
+  const sendMessage = async () => {
+    if (!input.trim() || isLoading || !selectedChild) return
+
+    const userMessage = input.trim()
+    setInput('')
+    setIsLoading(true)
+    setToolStatus(null)
+
+    const newMessages: Message[] = [...messages, { role: 'user', content: userMessage }]
+    setMessages(newMessages)
+    setMessages([...newMessages, { role: 'assistant', content: '' }])
+
+    try {
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          childId: selectedChild.id,
+          childName: selectedChild.name,
+          messages: newMessages.map(m => ({ role: m.role, content: m.content }))
+        })
+      })
+
+      if (!response.ok) throw new Error('Failed to send message')
+
+      const reader = response.body?.getReader()
+      if (!reader) throw new Error('No response body')
+
+      const decoder = new TextDecoder()
+      let assistantContent = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        const chunk = decoder.decode(value)
+        const lines = chunk.split('\n')
+
+        for (const line of lines) {
+          if (line.startsWith('data: ')) {
+            try {
+              const data = JSON.parse(line.slice(6))
+
+              if (data.type === 'content') {
+                assistantContent += data.content
+                setMessages(prev => {
+                  const updated = [...prev]
+                  updated[updated.length - 1] = { role: 'assistant', content: assistantContent }
+                  return updated
+                })
+              }
+
+              if (data.type === 'tool_call') {
+                const toolName = data.name.replace(/_/g, ' ')
+                setToolStatus(data.status === 'executing' ? `Checking ${toolName}...` : null)
+              }
+
+              if (data.type === 'done') setToolStatus(null)
+
+              if (data.type === 'error') {
+                setMessages(prev => {
+                  const updated = [...prev]
+                  updated[updated.length - 1] = {
+                    role: 'assistant',
+                    content: 'Sorry, something went wrong. Please try again.'
+                  }
+                  return updated
+                })
+              }
+            } catch {
+              // Ignore parse errors
+            }
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Chat error:', error)
+      setMessages(prev => {
+        const updated = [...prev]
+        if (updated.length > 0 && updated[updated.length - 1].role === 'assistant') {
+          updated[updated.length - 1] = {
+            role: 'assistant',
+            content: 'Sorry, I encountered an error. Please try again.'
+          }
+        }
+        return updated
+      })
+    } finally {
+      setIsLoading(false)
+      setToolStatus(null)
+    }
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      sendMessage()
+    }
+  }
+
+  // No children state
+  if (children.length === 0) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex flex-col">
+        <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <span className="text-xl font-semibold text-blue-600">Bloom</span>
+          </div>
+        </header>
+        <div className="flex-1 flex items-center justify-center p-6">
+          <div className="text-center">
+            <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-10 h-10 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+            </div>
+            <h2 className="text-xl font-semibold text-gray-800 mb-2">Welcome to Bloom</h2>
+            <p className="text-gray-600 mb-6">Add a child to get started with AI-powered behavioral support.</p>
+            <Link
+              href="/child/new"
+              className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-xl font-medium transition-colors"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+              </svg>
+              Add Child
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      {/* Header */}
+      <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between flex-shrink-0">
+        <div className="flex items-center gap-3">
+          {/* Hamburger Menu */}
+          <button
+            onClick={() => setMenuOpen(true)}
+            className="p-2 -ml-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+            aria-label="Open menu"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+
+          {/* Child Selector */}
+          <div className="relative">
+            <button
+              onClick={() => setChildSelectorOpen(!childSelectorOpen)}
+              className="flex items-center gap-2 px-3 py-2 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+            >
+              <span className="font-medium text-gray-800">{selectedChild?.name}</span>
+              <svg className={`w-4 h-4 text-gray-500 transition-transform ${childSelectorOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+
+            {/* Dropdown */}
+            {childSelectorOpen && (
+              <>
+                <div
+                  className="fixed inset-0 z-10"
+                  onClick={() => setChildSelectorOpen(false)}
+                />
+                <div className="absolute top-full left-0 mt-1 w-48 bg-white rounded-xl shadow-lg border border-gray-200 py-1 z-20">
+                  {children.map(child => (
+                    <button
+                      key={child.id}
+                      onClick={() => {
+                        setSelectedChild(child)
+                        setChildSelectorOpen(false)
+                      }}
+                      className={`w-full text-left px-4 py-2 hover:bg-gray-50 transition-colors ${
+                        selectedChild?.id === child.id ? 'bg-blue-50 text-blue-700' : 'text-gray-700'
+                      }`}
+                    >
+                      <span className="font-medium">{child.name}</span>
+                      {child.age && <span className="text-sm text-gray-500 ml-2">({child.age})</span>}
+                    </button>
+                  ))}
+                  <div className="border-t border-gray-100 mt-1 pt-1">
+                    <Link
+                      href="/child/new"
+                      className="flex items-center gap-2 w-full text-left px-4 py-2 text-blue-600 hover:bg-blue-50 transition-colors"
+                      onClick={() => setChildSelectorOpen(false)}
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                      </svg>
+                      Add Child
+                    </Link>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+
+        <span className="text-xl font-semibold text-blue-600">Bloom</span>
+      </header>
+
+      {/* Side Menu Overlay */}
+      {menuOpen && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/30 z-40"
+            onClick={() => setMenuOpen(false)}
+          />
+          <div className="fixed inset-y-0 left-0 w-72 bg-white shadow-xl z-50 flex flex-col">
+            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+              <span className="text-xl font-semibold text-blue-600">Bloom</span>
+              <button
+                onClick={() => setMenuOpen(false)}
+                className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <nav className="flex-1 p-4 space-y-1">
+              <Link
+                href="/chat"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-3 px-4 py-3 bg-blue-50 text-blue-700 rounded-xl font-medium"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+                </svg>
+                Chat
+              </Link>
+
+              <Link
+                href="/dashboard"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-xl transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+                </svg>
+                Dashboard
+              </Link>
+
+              {selectedChild && (
+                <Link
+                  href={`/child/${selectedChild.id}`}
+                  onClick={() => setMenuOpen(false)}
+                  className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-xl transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  {selectedChild.name}&apos;s Files
+                </Link>
+              )}
+
+              <Link
+                href="/child/new"
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-3 px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-xl transition-colors"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+                </svg>
+                Add Child
+              </Link>
+            </nav>
+
+            <div className="p-4 border-t border-gray-200">
+              <form action="/api/auth/signout" method="post">
+                <button
+                  type="submit"
+                  className="flex items-center gap-3 w-full px-4 py-3 text-gray-700 hover:bg-gray-100 rounded-xl transition-colors"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                  </svg>
+                  Sign Out
+                </button>
+              </form>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Messages */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+        {messages.length === 0 && selectedChild && (
+          <div className="flex flex-col items-center justify-center h-full py-12">
+            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+              <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+              </svg>
+            </div>
+            <h3 className="text-lg font-medium text-gray-800 mb-2">
+              How can I help with {selectedChild.name}?
+            </h3>
+            <p className="text-gray-500 text-center mb-6 max-w-sm">
+              Ask me anything about behavioral strategies, report an incident, or get guidance based on {selectedChild.name}&apos;s case files.
+            </p>
+            <div className="flex flex-wrap gap-2 justify-center max-w-md">
+              {[
+                `${selectedChild.name} just had a meltdown`,
+                'What are the main challenges?',
+                'Help with transitions',
+                'Report an incident'
+              ].map((suggestion, i) => (
+                <button
+                  key={i}
+                  onClick={() => {
+                    setInput(suggestion)
+                    inputRef.current?.focus()
+                  }}
+                  className="text-sm bg-white border border-gray-200 rounded-full px-4 py-2 hover:bg-gray-50 text-gray-700 transition-colors shadow-sm"
+                >
+                  {suggestion}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {messages.map((message, index) => (
+          <div
+            key={index}
+            className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+          >
+            <div
+              className={`max-w-[85%] rounded-2xl px-4 py-3 ${
+                message.role === 'user'
+                  ? 'bg-blue-600 text-white'
+                  : 'bg-white border border-gray-200 text-gray-800 shadow-sm'
+              }`}
+            >
+              {message.role === 'assistant' ? (
+                <div className="prose prose-sm max-w-none">
+                  {message.content ? (
+                    <div className="whitespace-pre-wrap text-sm leading-relaxed">
+                      {message.content}
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 text-gray-400">
+                      <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
+                      <span className="text-sm">{toolStatus || 'Thinking...'}</span>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <p className="text-sm">{message.content}</p>
+              )}
+            </div>
+          </div>
+        ))}
+        <div ref={messagesEndRef} />
+      </div>
+
+      {/* Tool status bar */}
+      {toolStatus && (
+        <div className="px-4 py-2 bg-blue-50 border-t border-blue-100 flex-shrink-0">
+          <div className="flex items-center gap-2 text-blue-600">
+            <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <span className="text-sm">{toolStatus}</span>
+          </div>
+        </div>
+      )}
+
+      {/* Input */}
+      <div className="p-4 bg-white border-t border-gray-200 flex-shrink-0">
+        <div className="flex gap-3 max-w-3xl mx-auto">
+          <textarea
+            ref={inputRef}
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder={selectedChild ? `Message about ${selectedChild.name}...` : 'Select a child first...'}
+            className="flex-1 resize-none rounded-xl border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            rows={1}
+            disabled={isLoading || !selectedChild}
+          />
+          <button
+            onClick={sendMessage}
+            disabled={isLoading || !input.trim() || !selectedChild}
+            className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white rounded-xl px-5 py-3 transition-colors flex-shrink-0"
+            aria-label="Send message"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}

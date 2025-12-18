@@ -41,7 +41,7 @@ export default function LoginPage() {
           password,
         })
         if (error) throw error
-        router.push('/dashboard')
+        router.push('/chat')
         router.refresh()
       }
     } catch (err) {

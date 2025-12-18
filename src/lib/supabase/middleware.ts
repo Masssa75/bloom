@@ -31,8 +31,8 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // Protect dashboard and child routes
-  const protectedPaths = ['/dashboard', '/child']
+  // Protect authenticated routes
+  const protectedPaths = ['/dashboard', '/child', '/chat', '/incident']
   const isProtectedPath = protectedPaths.some(path =>
     request.nextUrl.pathname.startsWith(path)
   )
@@ -43,10 +43,10 @@ export async function updateSession(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // Redirect logged in users away from login page
+  // Redirect logged in users away from login page to chat
   if (request.nextUrl.pathname === '/login' && user) {
     const url = request.nextUrl.clone()
-    url.pathname = '/dashboard'
+    url.pathname = '/chat'
     return NextResponse.redirect(url)
   }
 
