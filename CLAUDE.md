@@ -23,7 +23,8 @@
 - **Collaborator Invites**: Invite others by email, auto-accept on signup
 - **Document Organization**: Collapsible categories, weight-based sorting
 - **AI Chat**: Kimi K2 (Moonshot) with tool calling for case file access
-  - Structured action cards for urgent questions (Right Now / Say This / Later)
+  - AI-driven component toolkit (`<urgent>`, `<script>`, `<later>`, `<note>`)
+  - AI decides which components to use based on context
   - Auto-expanding input, tool call badges
 - **Playwright Tests**: E2E tests for add-child and invite flows
 
@@ -177,6 +178,8 @@ bloom/
 │   │   ├── DocumentCategories.tsx        # Collapsible doc categories
 │   │   └── PendingInvitations.tsx        # Accept/decline invites
 │   ├── lib/
+│   │   ├── chat/
+│   │   │   └── components.ts             # AI response component toolkit config
 │   │   └── supabase/
 │   │       ├── client.ts                 # Browser client (singleton)
 │   │       └── server.ts                 # Server client
@@ -260,26 +263,23 @@ The chat feature uses Kimi K2 with tool calling to access case files:
 - `get_document` - Fetches full content of specific document
 - `web_search` - Search web for behavioral strategies (Moonshot built-in)
 
-**Structured Response Format (for urgent questions):**
-```
-:::RIGHT_NOW
-- Immediate action 1
-- Immediate action 2
-:::
+**AI Response Component Toolkit:**
 
-:::SAY_THIS
-"Exact script to say to the child"
-:::
+The AI has HTML-like components it can use to format responses. Defined in `/src/lib/chat/components.ts`:
 
-:::LATER
-**Follow-up Title**
-1. Step when calm
-2. Next step
-:::
-```
+| Component | Renders As | Usage |
+|-----------|------------|-------|
+| `<urgent>` | Red card | Immediate actions (max 3-4 bullets) |
+| `<script>` | Blue card | Exact words to say verbatim |
+| `<later title="X">` | Collapsible | Follow-up steps when calm |
+| `<note>` | Gray aside | Brief context or explanation |
 
-ChatPage parses these markers and renders as colored action cards.
-For conversational questions, plain text responses are used.
+The AI decides which components to use based on context. For conversational questions, it uses plain text.
+
+**To add a new component:**
+1. Add to `COMPONENTS` array in `/src/lib/chat/components.ts`
+2. Add renderer case in `ChatPage.tsx` `ComponentRenderer` switch
+3. Prompt and parser update automatically
 
 **Provider Notes:**
 - **Moonshot (current)**: Reliable tool calling, has web search, slower
@@ -343,24 +343,29 @@ supabase db pull
 
 ## Session Log
 
-### Session - December 18, 2025 (Chat UX): Structured Responses
+### Session - December 18, 2025 (Chat UX): Component Toolkit
 
 **Completed:**
 - Debugged provider issues:
   - Groq: 413 token limit errors + unreliable tool calling
   - Moonshot: Works reliably but slower
   - Removed provider toggle, defaulted to Moonshot only
-- Implemented structured action card responses:
-  - System prompt returns `:::RIGHT_NOW`, `:::SAY_THIS`, `:::LATER` format
-  - ChatPage parses structured markdown into React components
-  - Red "Right Now" card - immediate actions (3-4 bullets max)
-  - Blue "Say This" card - exact script for the child
-  - Collapsible "Later" section - follow-up when calm
-  - Plain responses for conversational questions
+- Implemented AI-driven component toolkit:
+  - AI given HTML-like components: `<urgent>`, `<script>`, `<later>`, `<note>`
+  - AI decides which components to use based on context
+  - Components render as colored cards (red urgent, blue script, etc.)
+  - Externalized to `/src/lib/chat/components.ts` for easy modification
+  - Prompt and parser auto-update when components added
 - Added UI improvements:
   - Auto-expanding textarea (grows as you type)
   - Tool call badges shown separately from response text
-- Created design-mockups.html with 6 UI options (chose Option 1)
+- Created design-mockups.html with 6 UI options (chose Option 1: Action Cards)
+
+**Architecture decision:** Giving AI a "toolkit" is better than rigid formats because:
+- AI semantically decides presentation based on meaning
+- No parsing failures if format slightly varies
+- Easy to add new components without changing prompt structure
+- Shorter prompt (~80 words less)
 
 **Note:** Groq is 40x faster but has unreliable tool calling. Re-enable when they fix it.
 
