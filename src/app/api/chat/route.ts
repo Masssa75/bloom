@@ -359,10 +359,15 @@ export async function POST(request: NextRequest) {
             } else {
               continueLoop = false
             }
-          } catch (error) {
+          } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : String(error)
+            const errorDetails = error instanceof Error && 'response' in error
+              ? JSON.stringify((error as { response?: unknown }).response)
+              : ''
+            console.error(`Chat API error (${provider}):`, errorMessage, errorDetails)
             controller.enqueue(encoder.encode(`data: ${JSON.stringify({
               type: 'error',
-              error: String(error)
+              error: `${errorMessage}${errorDetails ? ' - ' + errorDetails : ''}`
             })}\n\n`))
             continueLoop = false
           }

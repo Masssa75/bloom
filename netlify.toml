@@ -5,5 +5,9 @@
 [build.environment]
   NODE_VERSION = "20"
 
+# Extend function timeout for AI chat (default is 10s)
+[functions]
+  external_node_modules = ["openai"]
+
 [[plugins]]
   package = "@netlify/plugin-nextjs"

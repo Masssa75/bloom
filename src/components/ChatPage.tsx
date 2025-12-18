@@ -113,11 +113,12 @@ export default function ChatPage({ children }: ChatPageProps) {
               if (data.type === 'done') setToolStatus(null)
 
               if (data.type === 'error') {
+                console.error('Chat error:', data.error)
                 setMessages(prev => {
                   const updated = [...prev]
                   updated[updated.length - 1] = {
                     role: 'assistant',
-                    content: 'Sorry, something went wrong. Please try again.'
+                    content: `Sorry, something went wrong: ${data.error}`
                   }
                   return updated
                 })
