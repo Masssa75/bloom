@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 
 interface Child {
@@ -9,16 +9,20 @@ interface Child {
   age?: number | null
 }
 
+interface ToolCall {
+  name: string
+  status: 'executing' | 'complete'
+}
+
 interface Message {
   role: 'user' | 'assistant'
   content: string
+  toolCalls?: ToolCall[]
 }
 
 interface ChatPageProps {
   children: Child[]
 }
-
-type Provider = 'groq' | 'moonshot'
 
 export default function ChatPage({ children }: ChatPageProps) {
   const [selectedChild, setSelectedChild] = useState<Child | null>(
@@ -27,10 +31,9 @@ export default function ChatPage({ children }: ChatPageProps) {
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [toolStatus, setToolStatus] = useState<string | null>(null)
+  const [currentToolCalls, setCurrentToolCalls] = useState<ToolCall[]>([])
   const [menuOpen, setMenuOpen] = useState(false)
   const [childSelectorOpen, setChildSelectorOpen] = useState(false)
-  const [provider, setProvider] = useState<Provider>('moonshot')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
@@ -43,7 +46,6 @@ export default function ChatPage({ children }: ChatPageProps) {
   }, [messages])
 
   useEffect(() => {
-    // Focus input on load
     inputRef.current?.focus()
   }, [])
 
@@ -52,17 +54,38 @@ export default function ChatPage({ children }: ChatPageProps) {
     setMessages([])
   }, [selectedChild?.id])
 
+  // Auto-resize textarea
+  const adjustTextareaHeight = useCallback(() => {
+    const textarea = inputRef.current
+    if (textarea) {
+      textarea.style.height = 'auto'
+      const newHeight = Math.min(textarea.scrollHeight, 200) // Max 200px
+      textarea.style.height = `${newHeight}px`
+    }
+  }, [])
+
+  useEffect(() => {
+    adjustTextareaHeight()
+  }, [input, adjustTextareaHeight])
+
   const sendMessage = async () => {
     if (!input.trim() || isLoading || !selectedChild) return
 
     const userMessage = input.trim()
     setInput('')
     setIsLoading(true)
-    setToolStatus(null)
+    setCurrentToolCalls([])
+
+    // Reset textarea height
+    if (inputRef.current) {
+      inputRef.current.style.height = 'auto'
+    }
 
     const newMessages: Message[] = [...messages, { role: 'user', content: userMessage }]
     setMessages(newMessages)
-    setMessages([...newMessages, { role: 'assistant', content: '' }])
+    setMessages([...newMessages, { role: 'assistant', content: '', toolCalls: [] }])
+
+    let toolCallsForMessage: ToolCall[] = []
 
     try {
       const response = await fetch('/api/chat', {
@@ -72,7 +95,7 @@ export default function ChatPage({ children }: ChatPageProps) {
           childId: selectedChild.id,
           childName: selectedChild.name,
           messages: newMessages.map(m => ({ role: m.role, content: m.content })),
-          provider
+          provider: 'moonshot'
         })
       })
 
@@ -100,17 +123,38 @@ export default function ChatPage({ children }: ChatPageProps) {
                 assistantContent += data.content
                 setMessages(prev => {
                   const updated = [...prev]
-                  updated[updated.length - 1] = { role: 'assistant', content: assistantContent }
+                  updated[updated.length - 1] = {
+                    role: 'assistant',
+                    content: assistantContent,
+                    toolCalls: toolCallsForMessage
+                  }
                   return updated
                 })
               }
 
               if (data.type === 'tool_call') {
-                const toolName = data.name.replace(/_/g, ' ')
-                setToolStatus(data.status === 'executing' ? `Checking ${toolName}...` : null)
+                const toolName = data.name
+                if (data.status === 'executing') {
+                  const newToolCall = { name: toolName, status: 'executing' as const }
+                  toolCallsForMessage = [...toolCallsForMessage, newToolCall]
+                  setCurrentToolCalls(toolCallsForMessage)
+                } else if (data.status === 'complete') {
+                  toolCallsForMessage = toolCallsForMessage.map(tc =>
+                    tc.name === toolName ? { ...tc, status: 'complete' as const } : tc
+                  )
+                  setCurrentToolCalls(toolCallsForMessage)
+                }
+                // Update message with current tool calls
+                setMessages(prev => {
+                  const updated = [...prev]
+                  updated[updated.length - 1] = {
+                    role: 'assistant',
+                    content: assistantContent,
+                    toolCalls: toolCallsForMessage
+                  }
+                  return updated
+                })
               }
-
-              if (data.type === 'done') setToolStatus(null)
 
               if (data.type === 'error') {
                 console.error('Chat error:', data.error)
@@ -118,7 +162,8 @@ export default function ChatPage({ children }: ChatPageProps) {
                   const updated = [...prev]
                   updated[updated.length - 1] = {
                     role: 'assistant',
-                    content: `Sorry, something went wrong: ${data.error}`
+                    content: `Sorry, something went wrong: ${data.error}`,
+                    toolCalls: toolCallsForMessage
                   }
                   return updated
                 })
@@ -136,14 +181,15 @@ export default function ChatPage({ children }: ChatPageProps) {
         if (updated.length > 0 && updated[updated.length - 1].role === 'assistant') {
           updated[updated.length - 1] = {
             role: 'assistant',
-            content: 'Sorry, I encountered an error. Please try again.'
+            content: 'Sorry, I encountered an error. Please try again.',
+            toolCalls: toolCallsForMessage
           }
         }
         return updated
       })
     } finally {
       setIsLoading(false)
-      setToolStatus(null)
+      setCurrentToolCalls([])
     }
   }
 
@@ -152,6 +198,10 @@ export default function ChatPage({ children }: ChatPageProps) {
       e.preventDefault()
       sendMessage()
     }
+  }
+
+  const formatToolName = (name: string) => {
+    return name.replace(/_/g, ' ').replace(/get /i, '')
   }
 
   // No children state
@@ -394,7 +444,34 @@ export default function ChatPage({ children }: ChatPageProps) {
               }`}
             >
               {message.role === 'assistant' ? (
-                <div className="prose prose-sm max-w-none">
+                <div>
+                  {/* Tool calls badges */}
+                  {message.toolCalls && message.toolCalls.length > 0 && (
+                    <div className="flex flex-wrap gap-1.5 mb-2 pb-2 border-b border-gray-100">
+                      {message.toolCalls.map((tc, i) => (
+                        <span
+                          key={i}
+                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${
+                            tc.status === 'complete'
+                              ? 'bg-green-50 text-green-700'
+                              : 'bg-blue-50 text-blue-700'
+                          }`}
+                        >
+                          <span className="opacity-60">&lt;/&gt;</span>
+                          {formatToolName(tc.name)}
+                          {tc.status === 'complete' ? (
+                            <svg className="w-3 h-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                            </svg>
+                          ) : (
+                            <div className="w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                          )}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Message content */}
                   {message.content ? (
                     <div className="whitespace-pre-wrap text-sm leading-relaxed">
                       {message.content}
@@ -402,7 +479,11 @@ export default function ChatPage({ children }: ChatPageProps) {
                   ) : (
                     <div className="flex items-center gap-2 text-gray-400">
                       <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
-                      <span className="text-sm">{toolStatus || 'Thinking...'}</span>
+                      <span className="text-sm">
+                        {currentToolCalls.length > 0
+                          ? `Fetching ${formatToolName(currentToolCalls[currentToolCalls.length - 1].name)}...`
+                          : 'Thinking...'}
+                      </span>
                     </div>
                   )}
                 </div>
@@ -415,36 +496,24 @@ export default function ChatPage({ children }: ChatPageProps) {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Tool status bar */}
-      {toolStatus && (
-        <div className="px-4 py-2 bg-blue-50 border-t border-blue-100 flex-shrink-0">
-          <div className="flex items-center gap-2 text-blue-600">
-            <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-            </svg>
-            <span className="text-sm">{toolStatus}</span>
-          </div>
-        </div>
-      )}
-
       {/* Input */}
       <div className="p-4 bg-white border-t border-gray-200 flex-shrink-0">
-        <div className="flex gap-3 max-w-3xl mx-auto">
+        <div className="flex gap-3 max-w-3xl mx-auto items-end">
           <textarea
             ref={inputRef}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={selectedChild ? `Message about ${selectedChild.name}...` : 'Select a child first...'}
-            className="flex-1 resize-none rounded-xl border border-gray-300 px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="flex-1 resize-none rounded-xl border border-gray-300 px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent min-h-[48px] max-h-[200px]"
             rows={1}
             disabled={isLoading || !selectedChild}
+            style={{ height: 'auto' }}
           />
           <button
             onClick={sendMessage}
             disabled={isLoading || !input.trim() || !selectedChild}
-            className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white rounded-xl px-5 py-3 transition-colors flex-shrink-0"
+            className="bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white rounded-xl px-5 py-3 transition-colors flex-shrink-0 h-[48px]"
             aria-label="Send message"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
