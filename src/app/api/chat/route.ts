@@ -495,10 +495,22 @@ export async function POST(request: NextRequest) {
                 const args = JSON.parse(tc.function.arguments)
                 const result = await executeTool(tc.function.name, args)
 
+                // Extract details for display (e.g., document title)
+                let detail: string | undefined
+                try {
+                  const parsed = JSON.parse(result)
+                  if (tc.function.name === 'get_document' && parsed.title) {
+                    detail = parsed.title
+                  } else if (tc.function.name === 'get_child_overview' && parsed.child?.name) {
+                    detail = parsed.child.name
+                  }
+                } catch { /* ignore parse errors */ }
+
                 controller.enqueue(encoder.encode(`data: ${JSON.stringify({
                   type: 'tool_call',
                   name: tc.function.name,
-                  status: 'complete'
+                  status: 'complete',
+                  detail
                 })}\n\n`))
 
                 const toolMsg: StoredMessage = {

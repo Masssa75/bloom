@@ -13,6 +13,7 @@ interface Child {
 interface ToolCall {
   name: string
   status: 'executing' | 'complete'
+  detail?: string  // e.g., document title
 }
 
 interface Message {
@@ -132,6 +133,19 @@ function parseComponentResponse(content: string): ParsedComponent[] {
 function ToolCallBadges({ toolCalls }: { toolCalls?: ToolCall[] }) {
   if (!toolCalls || toolCalls.length === 0) return null
 
+  const formatToolName = (tc: ToolCall) => {
+    const baseName = tc.name.replace(/_/g, ' ').replace(/get /i, '')
+    // Show detail (e.g., document title) if available
+    if (tc.detail && tc.status === 'complete') {
+      // Truncate long titles
+      const shortDetail = tc.detail.length > 30
+        ? tc.detail.substring(0, 27) + '...'
+        : tc.detail
+      return `${baseName}: ${shortDetail}`
+    }
+    return baseName
+  }
+
   return (
     <div className="flex flex-wrap gap-1.5 mb-2 pb-2 border-b border-gray-100">
       {toolCalls.map((tc, i) => (
@@ -142,9 +156,10 @@ function ToolCallBadges({ toolCalls }: { toolCalls?: ToolCall[] }) {
               ? 'bg-green-50 text-green-700'
               : 'bg-blue-50 text-blue-700'
           }`}
+          title={tc.detail || undefined}
         >
           <span className="opacity-60">&lt;/&gt;</span>
-          {tc.name.replace(/_/g, ' ').replace(/get /i, '')}
+          {formatToolName(tc)}
           {tc.status === 'complete' ? (
             <svg className="w-3 h-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
@@ -409,7 +424,9 @@ export default function ChatPage({ children, userId }: ChatPageProps) {
                   setCurrentToolCalls(toolCallsForMessage)
                 } else if (data.status === 'complete') {
                   toolCallsForMessage = toolCallsForMessage.map(tc =>
-                    tc.name === toolName ? { ...tc, status: 'complete' as const } : tc
+                    tc.name === toolName
+                      ? { ...tc, status: 'complete' as const, detail: data.detail }
+                      : tc
                   )
                   setCurrentToolCalls(toolCallsForMessage)
                 }
