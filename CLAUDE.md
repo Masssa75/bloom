@@ -33,7 +33,7 @@
 - AI-guided interviews
 - Framework analysis generation
 - Progress tracking over time
-- Chat history persistence
+- Chat history UI (sessions persist in DB, but no UI to view past chats)
 
 ## Tech Stack
 
@@ -135,6 +135,18 @@ CREATE TABLE content_items (
   other_children UUID[],
 
   -- Timestamps
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Chat Sessions (for context caching)
+CREATE TABLE chat_sessions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  child_id UUID REFERENCES children(id) ON DELETE CASCADE,
+  user_id UUID REFERENCES profiles(id) ON DELETE CASCADE,
+  messages JSONB NOT NULL DEFAULT '[]',  -- Full conversation with tool results
+  cache_id TEXT,                          -- Moonshot cache ID
+  cache_expires_at TIMESTAMPTZ,           -- When cache expires
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -349,6 +361,33 @@ supabase db pull
 ---
 
 ## Session Log
+
+### Session - December 18, 2025 (Context Caching): Token Optimization
+
+**Completed:**
+- Implemented Moonshot context caching to reduce token costs
+  - Created `chat_sessions` table to persist conversation history
+  - Full messages (including tool calls and results) stored in JSONB
+  - After each response, creates Moonshot cache with full context
+  - Subsequent messages use `cache_id` instead of resending everything
+  - Up to 90% token savings on long conversations
+- API changes:
+  - `/api/chat` now accepts single `message` + `sessionId` (not full array)
+  - Returns `sessionId` on first message for subsequent use
+  - Cache TTL: 1 hour, auto-refreshed on each use
+- Frontend changes:
+  - ChatPage tracks `sessionId` in state
+  - Session resets when switching children
+  - Retry resets session (starts fresh)
+
+**How caching works:**
+1. First message: Full context sent, response processed, cache created
+2. Second+ messages: Only `cache_id` + new message sent
+3. Cache includes: system prompt, tools, all messages, all tool results
+
+**Note:** Uses Moonshot's caching API at `api.moonshot.cn/v1/caching` (different from chat at `.ai`)
+
+---
 
 ### Session - December 18, 2025 (Chat UX): Component Toolkit
 
