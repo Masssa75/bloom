@@ -272,7 +272,10 @@ The AI has HTML-like components it can use to format responses. Defined in `/src
 | `<urgent>` | Red card | Immediate actions (max 3-4 bullets) |
 | `<script>` | Blue card | Exact words to say verbatim |
 | `<later title="X">` | Collapsible | Follow-up steps when calm |
+| `<insight>` | Green card | Key takeaway for informational responses |
 | `<note>` | Gray aside | Brief context or explanation |
+
+Plain text supports markdown: `**bold**` and bullet lists (`- item`).
 
 The AI decides which components to use based on context. For conversational questions, it uses plain text.
 
