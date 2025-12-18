@@ -24,6 +24,202 @@ interface ChatPageProps {
   children: Child[]
 }
 
+interface ParsedResponse {
+  rightNow: string[] | null
+  sayThis: string | null
+  later: { title: string; content: string } | null
+  plainText: string | null
+}
+
+function parseStructuredResponse(content: string): ParsedResponse {
+  const result: ParsedResponse = {
+    rightNow: null,
+    sayThis: null,
+    later: null,
+    plainText: null
+  }
+
+  // Check if content has structured format
+  const hasStructure = content.includes(':::RIGHT_NOW') || content.includes(':::SAY_THIS')
+
+  if (!hasStructure) {
+    result.plainText = content
+    return result
+  }
+
+  // Parse RIGHT_NOW section
+  const rightNowMatch = content.match(/:::RIGHT_NOW\n([\s\S]*?):::/m)
+  if (rightNowMatch) {
+    const items = rightNowMatch[1]
+      .split('\n')
+      .map(line => line.replace(/^[-•]\s*/, '').trim())
+      .filter(line => line.length > 0)
+    result.rightNow = items
+  }
+
+  // Parse SAY_THIS section
+  const sayThisMatch = content.match(/:::SAY_THIS\n([\s\S]*?):::/m)
+  if (sayThisMatch) {
+    result.sayThis = sayThisMatch[1].trim().replace(/^[""]|[""]$/g, '').replace(/^"|"$/g, '')
+  }
+
+  // Parse LATER section
+  const laterMatch = content.match(/:::LATER\n([\s\S]*?):::/m)
+  if (laterMatch) {
+    const laterContent = laterMatch[1].trim()
+    const titleMatch = laterContent.match(/^\*\*(.+?)\*\*/)
+    const title = titleMatch ? titleMatch[1] : 'Follow-up'
+    const content = titleMatch ? laterContent.replace(/^\*\*.+?\*\*\n?/, '').trim() : laterContent
+    result.later = { title, content }
+  }
+
+  // Get any remaining plain text (outside structured sections)
+  let plainText = content
+    .replace(/:::RIGHT_NOW[\s\S]*?:::/gm, '')
+    .replace(/:::SAY_THIS[\s\S]*?:::/gm, '')
+    .replace(/:::LATER[\s\S]*?:::/gm, '')
+    .trim()
+
+  if (plainText) {
+    result.plainText = plainText
+  }
+
+  return result
+}
+
+function StructuredResponse({ content, toolCalls }: { content: string; toolCalls?: ToolCall[] }) {
+  const [laterExpanded, setLaterExpanded] = useState(false)
+  const parsed = parseStructuredResponse(content)
+
+  // If no structured content, render as plain text
+  if (parsed.plainText && !parsed.rightNow && !parsed.sayThis && !parsed.later) {
+    return (
+      <div>
+        {toolCalls && toolCalls.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mb-2 pb-2 border-b border-gray-100">
+            {toolCalls.map((tc, i) => (
+              <span
+                key={i}
+                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${
+                  tc.status === 'complete'
+                    ? 'bg-green-50 text-green-700'
+                    : 'bg-blue-50 text-blue-700'
+                }`}
+              >
+                <span className="opacity-60">&lt;/&gt;</span>
+                {tc.name.replace(/_/g, ' ').replace(/get /i, '')}
+                {tc.status === 'complete' ? (
+                  <svg className="w-3 h-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                ) : (
+                  <div className="w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+                )}
+              </span>
+            ))}
+          </div>
+        )}
+        <div className="whitespace-pre-wrap text-sm leading-relaxed">
+          {parsed.plainText}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-3">
+      {/* Tool calls badges */}
+      {toolCalls && toolCalls.length > 0 && (
+        <div className="flex flex-wrap gap-1.5 pb-2 border-b border-gray-100">
+          {toolCalls.map((tc, i) => (
+            <span
+              key={i}
+              className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${
+                tc.status === 'complete'
+                  ? 'bg-green-50 text-green-700'
+                  : 'bg-blue-50 text-blue-700'
+              }`}
+            >
+              <span className="opacity-60">&lt;/&gt;</span>
+              {tc.name.replace(/_/g, ' ').replace(/get /i, '')}
+              {tc.status === 'complete' ? (
+                <svg className="w-3 h-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+              ) : (
+                <div className="w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
+              )}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Any intro text */}
+      {parsed.plainText && (
+        <p className="text-sm text-gray-600">{parsed.plainText}</p>
+      )}
+
+      {/* RIGHT NOW card */}
+      {parsed.rightNow && (
+        <div className="bg-red-50 border-l-4 border-red-500 rounded-r-lg p-3">
+          <div className="flex items-center gap-2 text-red-700 font-semibold text-sm mb-2">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Right Now
+          </div>
+          <ol className="text-sm space-y-1 text-gray-700 ml-6 list-decimal">
+            {parsed.rightNow.map((item, i) => (
+              <li key={i}>{item}</li>
+            ))}
+          </ol>
+        </div>
+      )}
+
+      {/* SAY THIS card */}
+      {parsed.sayThis && (
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+          <div className="text-blue-700 font-semibold text-sm mb-2 flex items-center gap-2">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+            </svg>
+            Say This
+          </div>
+          <p className="text-sm text-gray-700 italic">&ldquo;{parsed.sayThis}&rdquo;</p>
+        </div>
+      )}
+
+      {/* LATER section - collapsible */}
+      {parsed.later && (
+        <div className="bg-gray-50 rounded-lg overflow-hidden">
+          <button
+            onClick={() => setLaterExpanded(!laterExpanded)}
+            className="w-full px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 flex items-center gap-2 transition-colors"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span className="flex-1 text-left">Later: {parsed.later.title}</span>
+            <svg
+              className={`w-4 h-4 transition-transform ${laterExpanded ? 'rotate-180' : ''}`}
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          {laterExpanded && (
+            <div className="px-3 pb-3 text-sm text-gray-600 whitespace-pre-wrap">
+              {parsed.later.content}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function ChatPage({ children }: ChatPageProps) {
   const [selectedChild, setSelectedChild] = useState<Child | null>(
     children.length > 0 ? children[0] : null
@@ -59,7 +255,7 @@ export default function ChatPage({ children }: ChatPageProps) {
     const textarea = inputRef.current
     if (textarea) {
       textarea.style.height = 'auto'
-      const newHeight = Math.min(textarea.scrollHeight, 200) // Max 200px
+      const newHeight = Math.min(textarea.scrollHeight, 200)
       textarea.style.height = `${newHeight}px`
     }
   }, [])
@@ -76,7 +272,6 @@ export default function ChatPage({ children }: ChatPageProps) {
     setIsLoading(true)
     setCurrentToolCalls([])
 
-    // Reset textarea height
     if (inputRef.current) {
       inputRef.current.style.height = 'auto'
     }
@@ -144,7 +339,6 @@ export default function ChatPage({ children }: ChatPageProps) {
                   )
                   setCurrentToolCalls(toolCallsForMessage)
                 }
-                // Update message with current tool calls
                 setMessages(prev => {
                   const updated = [...prev]
                   updated[updated.length - 1] = {
@@ -242,7 +436,6 @@ export default function ChatPage({ children }: ChatPageProps) {
       {/* Header */}
       <header className="bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between flex-shrink-0">
         <div className="flex items-center gap-3">
-          {/* Hamburger Menu */}
           <button
             onClick={() => setMenuOpen(true)}
             className="p-2 -ml-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
@@ -253,7 +446,6 @@ export default function ChatPage({ children }: ChatPageProps) {
             </svg>
           </button>
 
-          {/* Child Selector */}
           <div className="relative">
             <button
               onClick={() => setChildSelectorOpen(!childSelectorOpen)}
@@ -265,7 +457,6 @@ export default function ChatPage({ children }: ChatPageProps) {
               </svg>
             </button>
 
-            {/* Dropdown */}
             {childSelectorOpen && (
               <>
                 <div
@@ -309,7 +500,7 @@ export default function ChatPage({ children }: ChatPageProps) {
         <span className="text-xl font-semibold text-blue-600">Bloom</span>
       </header>
 
-      {/* Side Menu Overlay */}
+      {/* Side Menu */}
       {menuOpen && (
         <>
           <div
@@ -411,10 +602,9 @@ export default function ChatPage({ children }: ChatPageProps) {
             </p>
             <div className="flex flex-wrap gap-2 justify-center max-w-md">
               {[
-                `${selectedChild.name} just had a meltdown`,
-                'What are the main challenges?',
-                'Help with transitions',
-                'Report an incident'
+                `${selectedChild.name} pushed a classmate`,
+                'Help with a meltdown',
+                'Transition strategies',
               ].map((suggestion, i) => (
                 <button
                   key={i}
@@ -437,56 +627,25 @@ export default function ChatPage({ children }: ChatPageProps) {
             className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
           >
             <div
-              className={`max-w-[85%] rounded-2xl px-4 py-3 ${
+              className={`max-w-[90%] rounded-2xl px-4 py-3 ${
                 message.role === 'user'
                   ? 'bg-blue-600 text-white'
                   : 'bg-white border border-gray-200 text-gray-800 shadow-sm'
               }`}
             >
               {message.role === 'assistant' ? (
-                <div>
-                  {/* Tool calls badges */}
-                  {message.toolCalls && message.toolCalls.length > 0 && (
-                    <div className="flex flex-wrap gap-1.5 mb-2 pb-2 border-b border-gray-100">
-                      {message.toolCalls.map((tc, i) => (
-                        <span
-                          key={i}
-                          className={`inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium ${
-                            tc.status === 'complete'
-                              ? 'bg-green-50 text-green-700'
-                              : 'bg-blue-50 text-blue-700'
-                          }`}
-                        >
-                          <span className="opacity-60">&lt;/&gt;</span>
-                          {formatToolName(tc.name)}
-                          {tc.status === 'complete' ? (
-                            <svg className="w-3 h-3 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                            </svg>
-                          ) : (
-                            <div className="w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin" />
-                          )}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Message content */}
-                  {message.content ? (
-                    <div className="whitespace-pre-wrap text-sm leading-relaxed">
-                      {message.content}
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2 text-gray-400">
-                      <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
-                      <span className="text-sm">
-                        {currentToolCalls.length > 0
-                          ? `Fetching ${formatToolName(currentToolCalls[currentToolCalls.length - 1].name)}...`
-                          : 'Thinking...'}
-                      </span>
-                    </div>
-                  )}
-                </div>
+                message.content ? (
+                  <StructuredResponse content={message.content} toolCalls={message.toolCalls} />
+                ) : (
+                  <div className="flex items-center gap-2 text-gray-400">
+                    <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
+                    <span className="text-sm">
+                      {currentToolCalls.length > 0
+                        ? `Fetching ${formatToolName(currentToolCalls[currentToolCalls.length - 1].name)}...`
+                        : 'Thinking...'}
+                    </span>
+                  </div>
+                )
               ) : (
                 <p className="text-sm">{message.content}</p>
               )}
