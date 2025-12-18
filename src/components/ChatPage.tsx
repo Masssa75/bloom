@@ -92,7 +92,8 @@ function parseComponentResponse(content: string): ParsedComponent[] {
 
   // Build regex from component tags config
   const tags = getComponentTags().join('|')
-  const componentRegex = new RegExp(`<(${tags})(?:\\s+title="([^"]*)")?>([\s\S]*?)<\\/\\1>`, 'g')
+  // Note: \\s\\S must be double-escaped in template strings for RegExp
+  const componentRegex = new RegExp(`<(${tags})(?:\\s+title="([^"]*)")?>([\\s\\S]*?)<\\/\\1>`, 'g')
 
   let lastIndex = 0
   let match
