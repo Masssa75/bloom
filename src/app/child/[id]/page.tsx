@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
 import CollaboratorsSection from '@/components/CollaboratorsSection'
+import DocumentCategories from '@/components/DocumentCategories'
 
 interface ContentItem {
   id: string
@@ -164,33 +165,8 @@ export default async function ChildProfilePage({
           )}
         </section>
 
-        {/* Documents */}
-        {documents.length > 0 && (
-          <section>
-            <h2 className="text-lg font-semibold text-gray-800 mb-3">Documents & Analysis</h2>
-            <div className="space-y-2">
-              {documents.map((item: ContentItem) => (
-                <Link
-                  key={item.id}
-                  href={`/child/${id}/doc/${item.id}`}
-                  className="block bg-white hover:bg-gray-50 border border-gray-200 rounded-xl p-4 transition-colors"
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h3 className="font-medium text-gray-800">{item.title}</h3>
-                      {item.one_liner && (
-                        <p className="text-sm text-gray-500 mt-1 line-clamp-1">{item.one_liner}</p>
-                      )}
-                    </div>
-                    <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded">
-                      {item.subtype?.replace(/_/g, ' ')}
-                    </span>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </section>
-        )}
+        {/* Documents - Grouped by Category */}
+        <DocumentCategories documents={documents} childId={id} />
 
         {/* Sessions */}
         {sessions.length > 0 && (
