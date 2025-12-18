@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect, notFound } from 'next/navigation'
 import Link from 'next/link'
+import CollaboratorsSection from '@/components/CollaboratorsSection'
 
 interface ContentItem {
   id: string
@@ -34,6 +35,8 @@ export default async function ChildProfilePage({
     .single()
 
   if (error || !child) notFound()
+
+  const isOwner = child.created_by === user.id
 
   // Get all content items for this child
   const { data: contentItems } = await supabase
@@ -216,6 +219,9 @@ export default async function ChildProfilePage({
             </div>
           </section>
         )}
+
+        {/* Collaborators Section */}
+        <CollaboratorsSection childId={id} isOwner={isOwner} />
       </main>
     </div>
   )

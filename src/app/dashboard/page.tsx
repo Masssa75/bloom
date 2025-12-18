@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
+import PendingInvitations from '@/components/PendingInvitations'
 
 interface Child {
   id: string
@@ -78,6 +79,9 @@ export default async function DashboardPage() {
 
       {/* Main Content */}
       <main className="max-w-6xl mx-auto px-4 py-8">
+        {/* Pending Invitations */}
+        <PendingInvitations />
+
         <div className="flex items-center justify-between mb-8">
           <h2 className="text-2xl font-semibold text-gray-800">Children</h2>
           <Link
