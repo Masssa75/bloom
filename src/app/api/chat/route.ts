@@ -14,8 +14,29 @@ const groq = new OpenAI({
   baseURL: 'https://api.groq.com/openai/v1'
 })
 
-// Tool definitions for Kimi
-const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
+// Kimi K2 via Moonshot direct (has web search)
+const moonshot = new OpenAI({
+  apiKey: process.env.MOONSHOT_API_KEY,
+  baseURL: 'https://api.moonshot.ai/v1'
+})
+
+type Provider = 'groq' | 'moonshot'
+
+const providerConfig = {
+  groq: {
+    client: groq,
+    model: 'moonshotai/kimi-k2-instruct',
+    hasWebSearch: false
+  },
+  moonshot: {
+    client: moonshot,
+    model: 'kimi-k2-0711-preview',
+    hasWebSearch: true
+  }
+}
+
+// Base tools (always available)
+const baseTools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
   {
     type: 'function',
     function: {
@@ -55,6 +76,32 @@ const tools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
     }
   },
 ]
+
+// Web search tool (only for Moonshot which has built-in support)
+const webSearchTool: OpenAI.Chat.Completions.ChatCompletionTool = {
+  type: 'function',
+  function: {
+    name: 'web_search',
+    description: 'Search the web for additional information about child behavioral strategies, research, or techniques not covered in the case files.',
+    parameters: {
+      type: 'object',
+      properties: {
+        query: {
+          type: 'string',
+          description: 'What to search for'
+        }
+      },
+      required: ['query']
+    }
+  }
+}
+
+function getToolsForProvider(provider: Provider): OpenAI.Chat.Completions.ChatCompletionTool[] {
+  if (providerConfig[provider].hasWebSearch) {
+    return [...baseTools, webSearchTool]
+  }
+  return baseTools
+}
 
 // Execute tool calls
 async function executeTool(name: string, args: Record<string, string>): Promise<string> {
@@ -113,13 +160,26 @@ async function executeTool(name: string, args: Record<string, string>): Promise<
       })
     }
 
+    if (name === 'web_search') {
+      // Moonshot handles web search natively - just return confirmation
+      return JSON.stringify({
+        status: 'Web search initiated',
+        query: args.query,
+        note: 'Results will be incorporated by Kimi'
+      })
+    }
+
     return JSON.stringify({ error: 'Unknown tool: ' + name })
   } catch (error) {
     return JSON.stringify({ error: String(error) })
   }
 }
 
-function buildSystemPrompt(childId: string, childName: string): string {
+function buildSystemPrompt(childId: string, childName: string, hasWebSearch: boolean): string {
+  const webSearchText = hasWebSearch
+    ? '\n3. **web_search** - Search the web for additional behavioral research or strategies'
+    : ''
+
   return `You are Bloom AI, a warm and knowledgeable behavioral support assistant for children. You help teachers, parents, and caregivers understand and support children's behavioral development using evidence-based frameworks like Dr. Ross Greene's Collaborative & Proactive Solutions (CPS).
 
 ## Current Child
@@ -130,7 +190,7 @@ You are supporting **${childName}** (child ID: ${childId})
 You have tools to access ${childName}'s case files:
 
 1. **get_child_overview** - Call this FIRST to see ${childName}'s profile, context summary, and list of available documents
-2. **get_document** - Fetch specific documents that are relevant to the question
+2. **get_document** - Fetch specific documents that are relevant to the question${webSearchText}
 
 ## Workflow
 
@@ -156,7 +216,7 @@ You have tools to access ${childName}'s case files:
 
 export async function POST(request: NextRequest) {
   try {
-    const { messages, childId, childName } = await request.json()
+    const { messages, childId, childName, provider = 'groq' } = await request.json()
 
     if (!childId || !messages) {
       return new Response(JSON.stringify({ error: 'Missing required fields' }), {
@@ -165,10 +225,14 @@ export async function POST(request: NextRequest) {
       })
     }
 
+    // Get provider configuration
+    const config = providerConfig[provider as Provider] || providerConfig.groq
+    const tools = getToolsForProvider(provider as Provider)
+
     // Build conversation with system prompt
     const systemMessage: OpenAI.Chat.Completions.ChatCompletionMessageParam = {
       role: 'system',
-      content: buildSystemPrompt(childId, childName || 'this child')
+      content: buildSystemPrompt(childId, childName || 'this child', config.hasWebSearch)
     }
 
     let conversationMessages: OpenAI.Chat.Completions.ChatCompletionMessageParam[] = [
@@ -188,8 +252,8 @@ export async function POST(request: NextRequest) {
           iterations++
 
           try {
-            const response = await groq.chat.completions.create({
-              model: 'moonshotai/kimi-k2-instruct',
+            const response = await config.client.chat.completions.create({
+              model: config.model,
               messages: conversationMessages,
               tools,
               temperature: 0.6,

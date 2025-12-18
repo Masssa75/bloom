@@ -18,6 +18,8 @@ interface ChatPageProps {
   children: Child[]
 }
 
+type Provider = 'groq' | 'moonshot'
+
 export default function ChatPage({ children }: ChatPageProps) {
   const [selectedChild, setSelectedChild] = useState<Child | null>(
     children.length > 0 ? children[0] : null
@@ -28,6 +30,7 @@ export default function ChatPage({ children }: ChatPageProps) {
   const [toolStatus, setToolStatus] = useState<string | null>(null)
   const [menuOpen, setMenuOpen] = useState(false)
   const [childSelectorOpen, setChildSelectorOpen] = useState(false)
+  const [provider, setProvider] = useState<Provider>('groq')
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
@@ -68,7 +71,8 @@ export default function ChatPage({ children }: ChatPageProps) {
         body: JSON.stringify({
           childId: selectedChild.id,
           childName: selectedChild.name,
-          messages: newMessages.map(m => ({ role: m.role, content: m.content }))
+          messages: newMessages.map(m => ({ role: m.role, content: m.content })),
+          provider
         })
       })
 
@@ -251,7 +255,32 @@ export default function ChatPage({ children }: ChatPageProps) {
           </div>
         </div>
 
-        <span className="text-xl font-semibold text-blue-600">Bloom</span>
+        <div className="flex items-center gap-2">
+          {/* Provider Toggle */}
+          <div className="flex items-center bg-gray-100 rounded-lg p-1">
+            <button
+              onClick={() => setProvider('groq')}
+              className={`px-2 py-1 text-xs font-medium rounded-md transition-colors ${
+                provider === 'groq'
+                  ? 'bg-white text-blue-600 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Groq
+            </button>
+            <button
+              onClick={() => setProvider('moonshot')}
+              className={`px-2 py-1 text-xs font-medium rounded-md transition-colors ${
+                provider === 'moonshot'
+                  ? 'bg-white text-purple-600 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              Moonshot
+            </button>
+          </div>
+          <span className="text-xl font-semibold text-blue-600">Bloom</span>
+        </div>
       </header>
 
       {/* Side Menu Overlay */}
