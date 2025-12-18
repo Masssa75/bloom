@@ -365,14 +365,26 @@ git add -A && git commit -m "feat: description" && git push origin main
   - Auth flow (login/signup with Supabase Auth)
   - Dashboard with child list and quick actions
   - Incident reporting form (mobile-optimized with severity levels)
-  - Child profile view with:
-    - Quick reference documents (prioritized)
-    - Recent incidents
-    - Documents & analysis
-    - Interview sessions
+  - Child profile view with prioritized quick reference docs
   - Document viewer (supports HTML, markdown, structured incident data)
+  - **Add Child page** - form to create new children
 - Updated Next.js 16.0.5 → 16.0.10 for security patch
 - Deployed to production: https://bloom.wunderkind.world
+
+**Auth & Email Configuration:**
+- Fixed Supabase auth redirect URL: `localhost:3000` → `https://bloom.wunderkind.world`
+- Customized email templates with Bloom branding:
+  - Subject: "Welcome to Bloom - Confirm Your Email"
+  - Styled HTML email with green Bloom header and branded button
+  - Updated all email subjects (recovery, magic link, etc.)
+
+**RLS Policy Fixes:**
+- Fixed infinite recursion in `children` table policies
+- New policies:
+  - `Users can view own children` - SELECT where created_by = auth.uid()
+  - `Users can view collaborated children` - SELECT via collaborators table
+  - `Users can create children` - INSERT when authenticated
+  - `Users can update own children` - UPDATE where created_by = auth.uid()
 
 **Data Model:**
 ```
@@ -395,6 +407,7 @@ content_items:
 - `src/app/login/page.tsx` - Auth UI
 - `src/app/dashboard/page.tsx` - Child list
 - `src/app/incident/new/page.tsx` - Incident form
+- `src/app/child/new/page.tsx` - Add Child form
 - `src/app/child/[id]/page.tsx` - Child profile
 - `src/app/child/[id]/doc/[docId]/page.tsx` - Document viewer
 - `src/lib/supabase/*` - Supabase client utilities
@@ -402,10 +415,14 @@ content_items:
 - `scripts/migrate-michael.ts` - Case file migration script
 - `supabase/migrations/20251218000000_content_items_schema.sql`
 
+**Known Issues:**
+- Michael (migrated) has no `created_by` so won't appear for users - need to assign ownership or add as collaborator
+
 **Next Steps:**
 1. User tests on Kimi K2 console to finalize AI prompts
 2. Implement AI chat feature
-3. Add more children and case files as needed
+3. Link existing Michael data to user account
+4. Add more children and case files as needed
 
 ---
 
