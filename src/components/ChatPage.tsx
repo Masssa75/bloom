@@ -432,7 +432,7 @@ export default function ChatPage({ children }: ChatPageProps) {
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder={selectedChild ? `Message about ${selectedChild.name}...` : 'Select a child first...'}
-            className="flex-1 resize-none rounded-xl border border-gray-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="flex-1 resize-none rounded-xl border border-gray-300 px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             rows={1}
             disabled={isLoading || !selectedChild}
           />
