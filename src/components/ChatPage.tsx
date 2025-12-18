@@ -19,6 +19,7 @@ interface Message {
   role: 'user' | 'assistant'
   content: string
   toolCalls?: ToolCall[]
+  incomplete?: boolean  // True if response was cut off
 }
 
 interface ChatPageProps {
@@ -354,6 +355,7 @@ export default function ChatPage({ children }: ChatPageProps) {
 
       const decoder = new TextDecoder()
       let assistantContent = ''
+      let receivedDone = false
 
       while (true) {
         const { done, value } = await reader.read()
@@ -403,6 +405,10 @@ export default function ChatPage({ children }: ChatPageProps) {
                 })
               }
 
+              if (data.type === 'done') {
+                receivedDone = true
+              }
+
               if (data.type === 'error') {
                 console.error('Chat error:', data.error)
                 setMessages(prev => {
@@ -421,6 +427,22 @@ export default function ChatPage({ children }: ChatPageProps) {
           }
         }
       }
+
+      // Check for incomplete response (had tool calls but no/minimal content)
+      const hasToolCalls = toolCallsForMessage.length > 0
+      const hasMinimalContent = assistantContent.trim().length < 50
+      if (hasToolCalls && hasMinimalContent && !receivedDone) {
+        setMessages(prev => {
+          const updated = [...prev]
+          updated[updated.length - 1] = {
+            role: 'assistant',
+            content: assistantContent || 'Response was interrupted. Please try again.',
+            toolCalls: toolCallsForMessage,
+            incomplete: true
+          }
+          return updated
+        })
+      }
     } catch (error) {
       console.error('Chat error:', error)
       setMessages(prev => {
@@ -429,7 +451,8 @@ export default function ChatPage({ children }: ChatPageProps) {
           updated[updated.length - 1] = {
             role: 'assistant',
             content: 'Sorry, I encountered an error. Please try again.',
-            toolCalls: toolCallsForMessage
+            toolCalls: toolCallsForMessage,
+            incomplete: true
           }
         }
         return updated
@@ -445,6 +468,19 @@ export default function ChatPage({ children }: ChatPageProps) {
       e.preventDefault()
       sendMessage()
     }
+  }
+
+  const retryLastMessage = () => {
+    if (messages.length < 2) return
+    // Find the last user message
+    const lastUserMessageIndex = messages.map(m => m.role).lastIndexOf('user')
+    if (lastUserMessageIndex === -1) return
+
+    const userMessage = messages[lastUserMessageIndex].content
+    // Remove the incomplete assistant response and resend
+    setMessages(messages.slice(0, lastUserMessageIndex))
+    setInput(userMessage)
+    inputRef.current?.focus()
   }
 
   const formatToolName = (name: string) => {
@@ -683,22 +719,43 @@ export default function ChatPage({ children }: ChatPageProps) {
               className={`max-w-[90%] rounded-2xl px-4 py-3 ${
                 message.role === 'user'
                   ? 'bg-blue-600 text-white'
-                  : 'bg-white border border-gray-200 text-gray-800 shadow-sm'
+                  : message.incomplete
+                    ? 'bg-orange-50 border border-orange-200 text-gray-800 shadow-sm'
+                    : 'bg-white border border-gray-200 text-gray-800 shadow-sm'
               }`}
             >
               {message.role === 'assistant' ? (
-                message.content ? (
-                  <StructuredResponse content={message.content} toolCalls={message.toolCalls} />
-                ) : (
-                  <div className="flex items-center gap-2 text-gray-400">
-                    <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
-                    <span className="text-sm">
-                      {currentToolCalls.length > 0
-                        ? `Fetching ${formatToolName(currentToolCalls[currentToolCalls.length - 1].name)}...`
-                        : 'Thinking...'}
-                    </span>
-                  </div>
-                )
+                <>
+                  {message.content ? (
+                    <StructuredResponse content={message.content} toolCalls={message.toolCalls} />
+                  ) : (
+                    <div className="flex items-center gap-2 text-gray-400">
+                      <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
+                      <span className="text-sm">
+                        {currentToolCalls.length > 0
+                          ? `Fetching ${formatToolName(currentToolCalls[currentToolCalls.length - 1].name)}...`
+                          : 'Thinking...'}
+                      </span>
+                    </div>
+                  )}
+                  {message.incomplete && (
+                    <div className="mt-3 pt-3 border-t border-orange-200 flex items-center gap-2">
+                      <svg className="w-4 h-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                      <span className="text-sm text-orange-700">Response incomplete</span>
+                      <button
+                        onClick={retryLastMessage}
+                        className="ml-auto text-sm text-orange-600 hover:text-orange-800 font-medium flex items-center gap-1"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        Retry
+                      </button>
+                    </div>
+                  )}
+                </>
               ) : (
                 <p className="text-sm">{message.content}</p>
               )}
