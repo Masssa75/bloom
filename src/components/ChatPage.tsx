@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback } from 'react'
+import React, { useState, useRef, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { getComponentTags } from '@/lib/chat/components'
 
@@ -26,9 +26,63 @@ interface ChatPageProps {
 }
 
 interface ParsedComponent {
-  type: 'urgent' | 'script' | 'later' | 'note' | 'text'
+  type: 'urgent' | 'script' | 'later' | 'insight' | 'note' | 'text'
   content: string
   title?: string // for 'later' type
+}
+
+// Simple markdown renderer for text content
+function renderMarkdown(text: string): React.ReactNode {
+  const lines = text.split('\n')
+  const elements: React.ReactNode[] = []
+  let currentList: string[] = []
+  let listIndex = 0
+
+  const flushList = () => {
+    if (currentList.length > 0) {
+      elements.push(
+        <ul key={`list-${listIndex++}`} className="list-disc ml-5 space-y-1 my-2">
+          {currentList.map((item, i) => (
+            <li key={i}>{renderInlineMarkdown(item)}</li>
+          ))}
+        </ul>
+      )
+      currentList = []
+    }
+  }
+
+  lines.forEach((line, i) => {
+    const trimmed = line.trim()
+    // Check for list items (-, *, •)
+    const listMatch = trimmed.match(/^[-*•]\s+(.+)$/)
+    if (listMatch) {
+      currentList.push(listMatch[1])
+    } else {
+      flushList()
+      if (trimmed) {
+        elements.push(
+          <p key={`p-${i}`} className="my-1">
+            {renderInlineMarkdown(trimmed)}
+          </p>
+        )
+      }
+    }
+  })
+  flushList()
+
+  return elements
+}
+
+// Handle inline markdown (bold, italic)
+function renderInlineMarkdown(text: string): React.ReactNode {
+  // Replace **bold** with <strong>
+  const parts = text.split(/(\*\*[^*]+\*\*)/g)
+  return parts.map((part, i) => {
+    if (part.startsWith('**') && part.endsWith('**')) {
+      return <strong key={i}>{part.slice(2, -2)}</strong>
+    }
+    return part
+  })
 }
 
 function parseComponentResponse(content: string): ParsedComponent[] {
@@ -170,6 +224,19 @@ function ComponentRenderer({ component, laterExpanded, setLaterExpanded }: {
         </div>
       )
 
+    case 'insight':
+      return (
+        <div className="bg-green-50 border-l-4 border-green-500 rounded-r-lg p-3">
+          <div className="flex items-center gap-2 text-green-700 font-semibold text-sm mb-1">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+            </svg>
+            Key Insight
+          </div>
+          <p className="text-sm text-gray-700">{component.content}</p>
+        </div>
+      )
+
     case 'note':
       return (
         <div className="bg-gray-100 border-l-2 border-gray-400 rounded-r px-3 py-2">
@@ -180,8 +247,8 @@ function ComponentRenderer({ component, laterExpanded, setLaterExpanded }: {
     case 'text':
     default:
       return (
-        <div className="whitespace-pre-wrap text-sm leading-relaxed">
-          {component.content}
+        <div className="text-sm leading-relaxed">
+          {renderMarkdown(component.content)}
         </div>
       )
   }

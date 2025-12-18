@@ -35,6 +35,11 @@ export const COMPONENTS: ComponentDefinition[] = [
     hasTitle: true
   },
   {
+    tag: 'insight',
+    description: 'Green highlight: key takeaway or important finding',
+    usage: 'Use to highlight the most important insight in informational responses'
+  },
+  {
     tag: 'note',
     description: 'Gray aside: brief context or explanation',
     usage: 'Use for additional context that supports the main response'
@@ -58,7 +63,8 @@ ${componentLines}
 
 **Guidelines:**
 - Urgent situations: use <urgent> + <script>, optionally <later>
-- Informational questions: plain text, optionally <note> for tips
+- Informational questions: use <insight> for the key takeaway, <note> for supporting context
+- Use markdown lists (- item) for bullet points
 - Keep responses concise - teachers are busy and stressed
 - <script> must be words they can read aloud exactly`
 }
