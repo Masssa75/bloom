@@ -1,9 +1,9 @@
 # Bloom Session Log - December 2025
 
-## Session 2 - December 19, 2025: Discovery Interview Mode
+## Session 3 - December 19, 2025: Interview Design & Transcript Persistence
 
 ### Overview
-Implemented AI-guided discovery interviews for new children who don't have case files yet. The system now auto-detects whether to run in interview mode or case support mode.
+Discussed and refined the discovery interview design. Key insight: same interview process works for children with behavioral concerns AND children without issues. Implemented interview transcript persistence and closing mechanism.
 
 ### Design Decisions
 
@@ -29,12 +29,38 @@ Opening question: "Tell me about [child]. Start wherever feels important to you.
 
 ### Completed
 
-**Discovery Interview System:**
-- AI conducts natural discovery interviews for new children
+**Interview Transcript Persistence:**
 - Creates `interview` type documents to persist conversation transcript
 - Real-time transcript updates with timestamps
-- `close_interview` tool lets AI wrap up and generate summary
 - Interview resumption: loads previous transcript when returning
+
+**Interview Closing Mechanism:**
+- `close_interview` tool lets AI wrap up and generate summary
+- AI suggests closing after exploring 4-5 areas
+- Generates: summary, one-liner, key traits, suggested frameworks
+- Status changes from `open` to `closed`
+
+**Interview Document Schema:**
+- Type: `interview`, Subtype: `discovery`
+- Weight: 5 (essential)
+- Status: `open` (in progress) or `closed` (complete)
+- Full transcript saved with timestamps
+
+### Files Changed
+- `src/app/api/chat/route.ts` - Transcript persistence, close_interview tool, mode detection refactor
+
+---
+
+## Session 2 - December 19, 2025: Discovery Interview Mode
+
+### Overview
+Implemented AI-guided discovery interviews for new children who don't have case files yet. The system now auto-detects whether to run in interview mode or case support mode.
+
+### Completed
+
+**Discovery Interview System:**
+- AI conducts natural discovery interviews for new children
+- Auto-mode detection based on document count
 
 **Auto-Mode Detection:**
 - **Interview Mode**: Activated when child has no case files, or has an open interview
@@ -47,20 +73,10 @@ Opening question: "Tell me about [child]. Start wherever feels important to you.
 3. AI asks warm, open-ended questions following user's lead
 4. AI explores temperament, emotions, relationships, interests, strengths, edges
 5. When enough info gathered, AI offers to wrap up
-6. AI calls `close_interview` tool → summary saved to document
-7. Child now has documents → future chats use case support mode
-
-**New Tools:**
-- `close_interview` - Generates summary, one-liner, key traits, suggested frameworks
-
-**Interview Document:**
-- Type: `interview`, Subtype: `discovery`
-- Weight: 5 (essential)
-- Status: `open` (in progress) or `closed` (complete)
-- Full transcript saved with timestamps
+6. Child now has documents → future chats use case support mode
 
 ### Files Changed
-- `src/app/api/chat/route.ts` - Interview mode logic, new tools, mode detection, transcript persistence
+- `src/app/api/chat/route.ts` - Interview mode logic, initial implementation
 
 ---
 

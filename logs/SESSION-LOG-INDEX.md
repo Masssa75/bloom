@@ -6,12 +6,16 @@ This index provides a comprehensive overview of all Bloom development sessions. 
 
 ### December 2025 Sessions
 
-#### [Session 2 - December 19, 2025 - Discovery Interview Mode](SESSION-LOG-2025-12.md#session-2---december-19-2025-discovery-interview-mode)
+#### [Session 3 - December 19, 2025 - Interview Design & Transcript Persistence](SESSION-LOG-2025-12.md#session-3---december-19-2025-interview-design--transcript-persistence)
 - **Unified interview design**: Same process works for children with/without behavioral concerns
+- **Programmatic mode detection**: Server-side, not AI detection
+- **Interview transcript persistence**: Real-time updates with timestamps
+- **close_interview tool**: AI generates summary, key traits when done
+- **Interview resumption**: Loads previous transcript when returning
+
+#### [Session 2 - December 19, 2025 - Discovery Interview Mode](SESSION-LOG-2025-12.md#session-2---december-19-2025-discovery-interview-mode)
 - **AI-guided discovery interviews** for new children without case files
-- **Auto-mode detection**: Programmatic (server-side), not AI detection
-- **Interview documents** persist transcript with timestamps, support resumption
-- **close_interview tool** generates summary and key traits
+- **Auto-mode detection**: interview mode vs case support mode
 
 #### [Session 1 - December 19, 2025 - Context Caching & Bug Fixes](SESSION-LOG-2025-12.md#session-1---december-19-2025-context-caching--bug-fixes)
 - **Moonshot context caching** implemented for up to 90% token savings on long conversations
