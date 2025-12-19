@@ -6,6 +6,11 @@ This index provides a comprehensive overview of all Bloom development sessions. 
 
 ### December 2025 Sessions
 
+#### [Session 6 - December 19, 2025 - Interview Mode UI & Deployment Fixes](SESSION-LOG-2025-12.md#session-6---december-19-2025-interview-mode-ui--deployment-fixes)
+- **Interview mode UI**: Dynamic welcome screen for new children vs children with case files
+- **Deployment fix**: Removed conflicting `app/` folder that broke Next.js routing
+- **Playwright tests**: All 7 passing with updated selectors
+
 #### [Session 5 - December 19, 2025 - Scenario Testing & Chat History UI](SESSION-LOG-2025-12.md#session-5---december-19-2025-scenario-testing--chat-history-ui)
 - **Scenario testing framework**: Created Alex test child, ran Urgent Crisis scenario
 - **Chat history UI**: View past sessions with tool badges, load conversations

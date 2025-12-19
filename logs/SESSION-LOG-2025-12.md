@@ -1,5 +1,78 @@
 # Bloom Session Log - December 2025
 
+## Session 6 - December 19, 2025: Interview Mode UI & Deployment Fixes
+
+### Overview
+Added client-side interview mode detection to show appropriate welcome UI for new children vs children with case files. Fixed critical deployment issue caused by conflicting `app/` folder in the repository.
+
+### Completed
+
+**Interview Mode Detection in UI:**
+- Added `isInterviewMode` state to ChatPage component
+- Client-side check for open interviews or case file count when child is selected
+- Mode detection mirrors server-side logic for consistency
+
+**Interview Mode Welcome Screen:**
+- Amber heart icon with "Let's get to know [Name]" heading
+- Friendly invitation: "I'd love to learn about [Name]. Just start talking - there's no wrong way to begin."
+- "Start the conversation" button pre-fills greeting
+- Placeholder changes to "Tell me about [Name]..."
+
+**Case Support Mode Welcome Screen (unchanged):**
+- Blue lightbulb icon with "How can I help with [Name]?"
+- Quick action buttons for behavioral scenarios
+- Placeholder: "Message about [Name]..."
+
+**Critical Deployment Fix:**
+- Root `app/` folder (containing `.claude/skills/`) was conflicting with Next.js app router
+- Next.js was looking for pages in `app/` instead of `src/app/`
+- Renamed to `.claude-skills/` and removed from git tracking
+- All routes now properly resolve
+
+**Playwright Test Updates:**
+- Updated selectors from `textarea[placeholder*="Message"]` to `textarea`
+- Accounts for dynamic placeholder text in interview/support modes
+- All 7 tests passing
+
+### Key Technical Details
+
+**Mode Detection Logic (ChatPage.tsx:341-378):**
+```typescript
+// Check for open interview
+const { data: openInterview } = await supabase
+  .from('content_items')
+  .select('id')
+  .eq('child_id', selectedChild.id)
+  .eq('type', 'interview')
+  .eq('metadata->>status', 'open')
+  .single()
+
+if (openInterview) {
+  setIsInterviewMode(true)
+  return
+}
+
+// Count non-interview documents
+const { count } = await supabase
+  .from('content_items')
+  .select('id', { count: 'exact', head: true })
+  .eq('child_id', selectedChild.id)
+  .neq('type', 'interview')
+
+// No case files = interview mode
+setIsInterviewMode((count ?? 0) === 0)
+```
+
+### Files Changed
+- `src/components/ChatPage.tsx` - Interview mode detection, dynamic welcome UI
+- `tests/chat-test.spec.ts` - Updated textarea selectors
+- Removed `app/` folder (moved to `.claude-skills/`)
+
+### Bug Fixed
+- **Internal Server Error on production**: Caused by empty `app/` folder making Next.js look for pages there instead of `src/app/`
+
+---
+
 ## Session 5 - December 19, 2025: Scenario Testing & Chat History UI
 
 ### Overview

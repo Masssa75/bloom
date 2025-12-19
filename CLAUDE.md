@@ -62,7 +62,8 @@
   - Incomplete response detection with retry button
   - Auto-expanding input, tool call badges
 - **Discovery Interviews**: AI-guided interviews for new children
-  - Auto-detects interview mode vs case support mode
+  - Auto-detects interview mode vs case support mode (server + client)
+  - Dynamic welcome UI: amber "Let's get to know [Name]" for new children
   - Persistent transcript document with timestamps
   - AI suggests closing when enough info gathered
   - `close_interview` tool generates summary and key traits
