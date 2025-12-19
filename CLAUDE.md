@@ -345,6 +345,14 @@ supabase db push --linked
 supabase db pull
 ```
 
+### Session Management
+- **WRAP keyword**: End session with cleanup:
+  1. Update session logs in `logs/` folder with what was accomplished
+  2. Document progress and mark todos complete
+  3. Commit and push all changes
+- **File deprecation**: Mark old files immediately when creating new versions with reason
+- **Incomplete work**: Document current state and next steps in session logs
+
 ---
 
 ## Project Info
@@ -360,155 +368,13 @@ supabase db pull
 
 ---
 
-## Session Log
+## Session Logs
 
-### Session - December 19, 2025: Context Caching & Bug Fixes
+**All session accomplishments are in the `logs/` folder for better organization.**
 
-**Completed:**
-- Implemented Moonshot context caching to reduce token costs
-  - Created `chat_sessions` table to persist conversation history
-  - Full messages (including tool calls and results) stored in JSONB
-  - After each response, creates Moonshot cache with full context
-  - Subsequent messages use `cache_id` instead of resending everything
-  - Up to 90% token savings on long conversations
-- API changes:
-  - `/api/chat` now accepts single `message` + `sessionId` (not full array)
-  - Returns `sessionId` on first message for subsequent use
-  - Cache TTL: 1 hour, auto-refreshed on each use
-  - **Extended timeout to 60 seconds** (`maxDuration = 60`) - was timing out at default 10s
-- Frontend changes:
-  - ChatPage tracks `sessionId` in state
-  - Session resets when switching children
-  - Retry resets session (starts fresh)
-  - Console logging for cache status: `📝 New session`, `⚡ USING CACHE`, `🔄 No cache`
-- Bug fixes:
-  - Fixed component tag parsing regex (double-escape `[\\s\\S]` in template strings)
-  - Fixed `done` event sent before cache operations (was blocking client)
-  - Added error handling for cache creation failures (non-blocking)
-- UX improvements:
-  - Tool call badges now show document titles: `document: Quick Reference Guide ✓`
-  - Child overview badge shows child name: `child overview: Michael ✓`
-  - Hover tooltip shows full title for truncated names
-- Testing:
-  - Created Playwright test for chat flow (`tests/chat-test.spec.ts`)
-  - Added test account as collaborator on Michael's profile
-  - Tests pass with 34s response time
-
-**How caching works:**
-1. First message: Full context sent, response processed, cache created
-2. Second+ messages: Only `cache_id` + new message sent
-3. Cache includes: system prompt, tools, all messages, all tool results
-
-**Key fix:** Netlify functions default to 10s timeout - extended to 60s with `export const maxDuration = 60`
-
-**Note:** Moonshot caching API at `api.moonshot.cn/v1/caching` (different from chat at `.ai`)
-
----
-
-### Session - December 18, 2025 (Chat UX): Component Toolkit
-
-**Completed:**
-- Debugged provider issues:
-  - Groq: 413 token limit errors + unreliable tool calling
-  - Moonshot: Works reliably but slower
-  - Removed provider toggle, defaulted to Moonshot only
-- Implemented AI-driven component toolkit:
-  - Components: `<urgent>`, `<script>`, `<later>`, `<insight>`, `<note>`
-  - AI decides which components to use based on context
-  - Components render as colored cards (red, blue, green, gray)
-  - Externalized to `/src/lib/chat/components.ts` for easy modification
-  - Prompt and parser auto-update when components added
-- Added markdown rendering for plain text:
-  - Bullet lists (`- item`) render as proper `<ul>` lists
-  - Bold text (`**bold**`) renders as `<strong>`
-- Added incomplete response detection:
-  - Tracks if server sent 'done' event
-  - Detects when tool calls succeed but response cut off
-  - Orange highlight for incomplete messages
-  - Retry button repopulates input for resending
-- Added UI improvements:
-  - Auto-expanding textarea (grows as you type)
-  - Tool call badges shown separately from response text
-  - Brief status messages guideline ("Checking profile..." not verbose)
-- Created design-mockups.html with 6 UI options (chose Option 1: Action Cards)
-
-**Architecture decision:** Giving AI a "toolkit" is better than rigid formats because:
-- AI semantically decides presentation based on meaning
-- No parsing failures if format slightly varies
-- Easy to add new components without changing prompt structure
-
-**Note:** Groq is 40x faster but has unreliable tool calling. Re-enable when they fix it.
-
----
-
-### Session - December 18, 2025 (AI Chat): Main Feature Complete
-
-**Completed:**
-- Built AI Chat with Kimi K2 integration
-  - `/api/chat` route with streaming + tool calling loop
-  - `ChatInterface` floating component on child profile
-  - Tools: get_child_overview, get_document, web_search
-  - Kimi fetches relevant case files to answer questions
-- Created Kimi API endpoints for document access:
-  - `/api/kimi/child/[childId]` - child overview + doc list
-  - `/api/kimi/child/[childId]/documents` - list/batch fetch
-  - `/api/kimi/child/[childId]/documents/[docId]` - single doc
-- Added KIMI_API_KEY for external API access
-
-**The main product feature is now live!**
-
----
-
-### Session - December 18, 2025 (Continued): Features & Polish
-
-**Completed:**
-- Fixed add child flow (RLS policies were actually working)
-- Added collaborator invite system:
-  - `invitations` table for pending invites
-  - `/api/invite` endpoint (POST/GET/DELETE)
-  - `CollaboratorsSection` component on child profile
-  - `PendingInvitations` component on dashboard
-  - Auto-accept trigger on user signup
-- Added collapsible document categories:
-  - Documents grouped by subtype
-  - Expand/collapse with icons and colors
-  - Count badges per category
-- Added document weight/importance system:
-  - 1-5 scale (5=essential, 1=archival)
-  - Sorted by weight within categories
-  - ★ star indicator for weight-5 docs
-- Fixed double-click issue (Supabase client singleton)
-- Fixed back button on incident page (router.back())
-- Imported Michael's 24 case files with proper weights
-- Created Playwright tests (add-child, invite flows)
-
-**Test Account Created:**
-- claude-test@bloom.wunderkind.world / TestPassword123!
-
----
-
-### Session - December 18, 2025: MVP Implementation
-
-**Completed:**
-- Redesigned database with content_items table
-- Built complete MVP UI (auth, dashboard, incidents, child profiles)
-- Updated Next.js 16.0.5 → 16.0.10 for security
-- Fixed Supabase auth redirect and email branding
-- Initial Michael case file migration
-
----
-
-### Session - December 3, 2025: Deployment Verification
-- Verified Netlify deployment
-- Confirmed custom domain with SSL
-
-### Session - December 2, 2025: Full Deployment
-- Created Netlify site, configured env vars
-- Set up custom domain: bloom.wunderkind.world
-
-### Session - November 30, 2025: Project Setup
-- Created GitHub repo, initialized Next.js
-- Created Supabase project and initial schema
+See:
+- `logs/SESSION-LOG-INDEX.md` - Overview of all sessions
+- `logs/SESSION-LOG-2025-12.md` - December 2025 sessions
 
 ---
 
