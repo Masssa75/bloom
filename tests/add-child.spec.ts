@@ -18,9 +18,13 @@ test.describe('Add Child Flow', () => {
     await page.fill('input[type="password"]', TEST_PASSWORD);
     await page.click('button[type="submit"]');
 
-    // Should be on dashboard
-    await expect(page).toHaveURL(/\/dashboard/, { timeout: 10000 });
+    // Should be on chat page (app redirects to /chat after login)
+    await expect(page).toHaveURL(/\/chat/, { timeout: 10000 });
     console.log('Successfully logged in!');
+
+    // Navigate to dashboard to add a child
+    await page.goto('https://bloom.wunderkind.world/dashboard');
+    await expect(page).toHaveURL(/\/dashboard/);
 
     // Click Add Child
     await page.click('text=Add Child');

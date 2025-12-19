@@ -14,19 +14,26 @@ test.describe('Invite Collaborator Flow', () => {
     await page.fill('input[type="email"]', TEST_EMAIL);
     await page.fill('input[type="password"]', TEST_PASSWORD);
     await page.click('button[type="submit"]');
-    await expect(page).toHaveURL(/\/dashboard/, { timeout: 10000 });
+    // App redirects to /chat after login
+    await expect(page).toHaveURL(/\/chat/, { timeout: 10000 });
     console.log('Logged in');
 
-    // Go to a child profile (click first child - not "Add Child")
-    // Wait for children to load
-    await page.waitForSelector('a[href^="/child/"]:not([href="/child/new"])');
-    await page.click('a[href^="/child/"]:not([href="/child/new"])');
-    await expect(page).toHaveURL(/\/child\/[a-f0-9-]+/);
-    console.log('On child profile');
+    // First create a test child so we're guaranteed to be the owner
+    await page.goto('https://bloom.wunderkind.world/child/new');
+    await page.fill('input[placeholder="Enter name"]', 'Invite Test Child');
+    await page.fill('input[placeholder="Enter age"]', '6');
+    await page.click('button[type="submit"]');
 
-    // Check for Collaborators section (use heading specifically)
+    // Should redirect to the new child's profile
+    await expect(page).toHaveURL(/\/child\/[a-f0-9-]+/, { timeout: 10000 });
+    console.log('Created test child, on profile');
+
+    // Wait for page to fully load
+    await page.waitForLoadState('networkidle');
+
+    // Check for Collaborators section (only visible if we're the owner)
     const collaboratorsHeading = page.getByRole('heading', { name: 'Collaborators' });
-    await expect(collaboratorsHeading).toBeVisible();
+    await expect(collaboratorsHeading).toBeVisible({ timeout: 10000 });
     console.log('Collaborators section visible');
 
     // Click Invite button

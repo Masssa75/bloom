@@ -16,11 +16,7 @@ test.describe('Chat functionality', () => {
     // Check header elements
     await expect(page.locator('text=Bloom')).toBeVisible()
 
-    // Check provider toggle exists
-    await expect(page.getByRole('button', { name: 'Groq' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Moonshot' })).toBeVisible()
-
-    // Check child selector exists
+    // Check child selector exists (look for Michael or any child selector)
     const childSelector = page.locator('button:has-text("Michael")')
     if (await childSelector.isVisible()) {
       // User has Michael, verify child selector works
@@ -29,10 +25,7 @@ test.describe('Chat functionality', () => {
     }
   })
 
-  test('sends message and receives streaming response - Groq', async ({ page }) => {
-    // Make sure Groq is selected
-    await page.getByRole('button', { name: 'Groq' }).click()
-
+  test('sends message and receives streaming response', async ({ page }) => {
     // Type a simple message
     const input = page.locator('textarea')
     await input.fill('Hello')
@@ -56,8 +49,7 @@ test.describe('Chat functionality', () => {
     expect(requestBody).toBeTruthy()
     expect(requestBody.childId).toBeTruthy()
     expect(requestBody.childName).toBeTruthy()
-    expect(requestBody.messages).toHaveLength(1)
-    expect(requestBody.provider).toBe('groq')
+    expect(requestBody.message).toBeTruthy()
 
     // Log the child ID for debugging
     console.log('Child ID sent:', requestBody.childId)
@@ -75,36 +67,8 @@ test.describe('Chat functionality', () => {
     console.log('Assistant response:', content?.substring(0, 200))
   })
 
-  test('sends message and receives streaming response - Moonshot', async ({ page }) => {
-    // Switch to Moonshot
-    await page.getByRole('button', { name: 'Moonshot' }).click()
-
-    // Type a simple message
-    const input = page.locator('textarea')
-    await input.fill('Hello')
-
-    // Send the message
-    await page.click('button[aria-label="Send message"]')
-
-    // Wait for response
-    await expect(page.locator('.bg-white.border.border-gray-200')).toBeVisible({ timeout: 30000 })
-
-    // Wait for response to complete
-    await expect(page.locator('text=Thinking...')).not.toBeVisible({ timeout: 60000 })
-
-    // Verify no error message
-    const assistantMessage = page.locator('.bg-white.border.border-gray-200').last()
-    const content = await assistantMessage.textContent()
-    expect(content).not.toContain('Sorry, something went wrong')
-
-    console.log('Moonshot response:', content?.substring(0, 200))
-  })
-
-  test('tool calling works with child context - Groq', async ({ page }) => {
-    // Make sure Groq is selected
-    await page.getByRole('button', { name: 'Groq' }).click()
-
-    // Ask about Michael specifically to trigger tool call
+  test('tool calling works with child context', async ({ page }) => {
+    // Ask about the child specifically to trigger tool call
     const input = page.locator('textarea')
     await input.fill('What are the main challenges for this child?')
 

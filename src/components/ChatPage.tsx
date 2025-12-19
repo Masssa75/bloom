@@ -291,6 +291,15 @@ function StructuredResponse({ content, toolCalls }: { content: string; toolCalls
   )
 }
 
+interface HistorySession {
+  id: string
+  createdAt: string
+  updatedAt: string
+  preview: string
+  messageCount: number
+  toolsUsed: string[]
+}
+
 export default function ChatPage({ children, userId }: ChatPageProps) {
   const [selectedChild, setSelectedChild] = useState<Child | null>(
     children.length > 0 ? children[0] : null
@@ -302,6 +311,9 @@ export default function ChatPage({ children, userId }: ChatPageProps) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [childSelectorOpen, setChildSelectorOpen] = useState(false)
   const [sessionId, setSessionId] = useState<string | null>(null)
+  const [historyOpen, setHistoryOpen] = useState(false)
+  const [historySessions, setHistorySessions] = useState<HistorySession[]>([])
+  const [loadingHistory, setLoadingHistory] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
@@ -336,6 +348,100 @@ export default function ChatPage({ children, userId }: ChatPageProps) {
   useEffect(() => {
     adjustTextareaHeight()
   }, [input, adjustTextareaHeight])
+
+  // Load chat history for selected child
+  const loadHistory = async () => {
+    if (!selectedChild) return
+    setLoadingHistory(true)
+    try {
+      const res = await fetch(`/api/chat/history?childId=${selectedChild.id}`)
+      const data = await res.json()
+      if (data.sessions) {
+        setHistorySessions(data.sessions)
+      }
+    } catch (err) {
+      console.error('Failed to load history:', err)
+    }
+    setLoadingHistory(false)
+  }
+
+  // Load a specific session
+  const loadSession = async (historySessionId: string) => {
+    try {
+      const res = await fetch('/api/chat/history', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionId: historySessionId })
+      })
+      const data = await res.json()
+      if (data.session) {
+        // Parse messages and extract tool calls
+        const rawMessages = data.session.messages as {
+          role: string
+          content: string | null
+          tool_calls?: { id: string; function: { name: string; arguments: string } }[]
+          tool_call_id?: string
+        }[]
+
+        // Convert to Message format, attaching tool calls to assistant messages
+        const loadedMessages: Message[] = []
+        let pendingToolCalls: ToolCall[] = []
+
+        for (const msg of rawMessages) {
+          if (msg.role === 'user' && msg.content) {
+            loadedMessages.push({ role: 'user', content: msg.content })
+          } else if (msg.role === 'assistant') {
+            // Extract tool calls from this message
+            if (msg.tool_calls) {
+              pendingToolCalls = msg.tool_calls.map(tc => ({
+                name: tc.function.name,
+                status: 'complete' as const,
+                detail: undefined
+              }))
+            }
+            // If there's content, add the message with tool calls
+            if (msg.content) {
+              loadedMessages.push({
+                role: 'assistant',
+                content: msg.content,
+                toolCalls: pendingToolCalls.length > 0 ? [...pendingToolCalls] : undefined
+              })
+              pendingToolCalls = []
+            }
+          } else if (msg.role === 'tool' && msg.content) {
+            // Try to extract document title from tool result
+            try {
+              const result = JSON.parse(msg.content)
+              if (result.title && pendingToolCalls.length > 0) {
+                const lastTool = pendingToolCalls[pendingToolCalls.length - 1]
+                if (!lastTool.detail) {
+                  lastTool.detail = result.title
+                }
+              } else if (result.child?.name && pendingToolCalls.length > 0) {
+                const lastTool = pendingToolCalls[pendingToolCalls.length - 1]
+                if (!lastTool.detail) {
+                  lastTool.detail = result.child.name
+                }
+              }
+            } catch { /* ignore parse errors */ }
+          }
+        }
+
+        setMessages(loadedMessages)
+        setSessionId(historySessionId)
+        setHistoryOpen(false)
+      }
+    } catch (err) {
+      console.error('Failed to load session:', err)
+    }
+  }
+
+  // Start new chat
+  const startNewChat = () => {
+    setMessages([])
+    setSessionId(null)
+    setHistoryOpen(false)
+  }
 
   const sendMessage = async () => {
     if (!input.trim() || isLoading || !selectedChild) return
@@ -632,7 +738,21 @@ export default function ChatPage({ children, userId }: ChatPageProps) {
           </div>
         </div>
 
-        <span className="text-xl font-semibold text-blue-600">Bloom</span>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => {
+              setHistoryOpen(true)
+              loadHistory()
+            }}
+            className="p-2 text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors"
+            aria-label="Chat history"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+          </button>
+          <span className="text-xl font-semibold text-blue-600">Bloom</span>
+        </div>
       </header>
 
       {/* Side Menu */}
@@ -715,6 +835,86 @@ export default function ChatPage({ children, userId }: ChatPageProps) {
                   Sign Out
                 </button>
               </form>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* History Panel */}
+      {historyOpen && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/30 z-40"
+            onClick={() => setHistoryOpen(false)}
+          />
+          <div className="fixed inset-y-0 right-0 w-80 bg-white shadow-xl z-50 flex flex-col">
+            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+              <span className="text-lg font-semibold text-gray-800">Chat History</span>
+              <button
+                onClick={() => setHistoryOpen(false)}
+                className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <div className="p-4 border-b border-gray-100">
+              <button
+                onClick={startNewChat}
+                className="w-full flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                </svg>
+                New Chat
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto">
+              {loadingHistory ? (
+                <div className="flex items-center justify-center p-8">
+                  <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                </div>
+              ) : historySessions.length === 0 ? (
+                <div className="p-4 text-center text-gray-500">
+                  No chat history yet
+                </div>
+              ) : (
+                <div className="divide-y divide-gray-100">
+                  {historySessions.map(session => (
+                    <button
+                      key={session.id}
+                      onClick={() => loadSession(session.id)}
+                      className={`w-full text-left p-4 hover:bg-gray-50 transition-colors ${
+                        sessionId === session.id ? 'bg-blue-50 border-l-2 border-blue-600' : ''
+                      }`}
+                    >
+                      <p className="text-sm text-gray-800 line-clamp-2 mb-1">
+                        {session.preview}
+                      </p>
+                      {session.toolsUsed && session.toolsUsed.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mb-1">
+                          {session.toolsUsed.map(tool => (
+                            <span
+                              key={tool}
+                              className="text-xs px-1.5 py-0.5 bg-emerald-50 text-emerald-700 rounded"
+                            >
+                              {formatToolName(tool)}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                      <div className="flex items-center gap-2 text-xs text-gray-500">
+                        <span>{new Date(session.updatedAt).toLocaleDateString()}</span>
+                        <span>•</span>
+                        <span>{session.messageCount} messages</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </>
