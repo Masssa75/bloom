@@ -136,14 +136,3 @@ Copy this for each scenario run:
 ### Suggested Changes
 -
 ```
-
----
-
-## Improvement Tracking
-
-After identifying improvements:
-1. Document the issue in `improvement-log.md`
-2. Make the change (system prompt, component definition, etc.)
-3. Re-run the same scenario
-4. Compare scores
-5. Document the result
