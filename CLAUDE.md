@@ -1,5 +1,39 @@
 # Bloom - AI-Powered Child Behavioral Assessment Platform
 
+<!-- ============================================================
+     PROTECTED SECTIONS - READ THIS BEFORE EDITING
+     ============================================================
+
+     TIER 1: NEVER EDIT OR REMOVE (Core Processes)
+     These sections define how we work. Do not modify without explicit permission.
+     - Autonomous Development Workflow
+     - Communication Style
+     - The Sunbeam Debugging Protocol
+     - Autonomous Working Principles
+     - Development Rules
+     - Session Management
+
+     TIER 2: CAN EDIT, DO NOT REMOVE WITHOUT PERMISSION (Evolving Reference)
+     These sections may be updated as the project evolves, but should not be
+     deleted without asking first.
+     - Project Overview
+     - Tech Stack
+     - Quick Start
+     - Database Schema
+     - App Structure
+     - Test Account
+     - Useful Scripts
+     - Key Implementation Details
+     - Project Info
+     - Session Logs
+
+     DYNAMIC: UPDATE FREELY
+     These sections are expected to change frequently.
+     - Current State (What's Built / Not Built)
+     - Next Steps
+
+     ============================================================ -->
+
 ## Project Overview
 
 **Bloom** is an AI-powered platform for understanding and supporting children's behavioral development. It enables parents, teachers, and caregivers to:
@@ -352,6 +386,105 @@ supabase db pull
   3. Commit and push all changes
 - **File deprecation**: Mark old files immediately when creating new versions with reason
 - **Incomplete work**: Document current state and next steps in session logs
+
+### Communication Style
+- Ask for clarification when requirements are ambiguous
+- Provide options and recommendations before implementing
+- Explain technical decisions and trade-offs
+- Keep responses concise but informative
+
+---
+
+## The Sunbeam Debugging Protocol
+
+When debugging issues, follow this systematic 5-step approach:
+
+### Step 1: Browser Testing (Always First!)
+- Manually reproduce the issue in browser
+- Note exact steps to reproduce
+- Take screenshots/record console errors
+- Never claim something works without verification
+
+### Step 2: Investigate Root Cause
+- Trace data flow through components
+- Check API responses
+- Verify state management
+- Identify exact failure point
+
+### Step 3: Implement Minimal Fix
+- Fix only what's broken
+- Avoid refactoring unless necessary
+- Test fix immediately
+- Document any assumptions
+
+### Step 4: Verify with Automation
+- Create browser automation test
+- Verify fix works consistently
+- Test edge cases
+- Ensure no regressions
+
+### Step 5: Document Everything
+- Update session logs immediately
+- Note what was broken and why
+- Document the fix approach
+- Update test documentation
+
+---
+
+## Autonomous Working Principles
+
+### ✅ ALWAYS Do Without Asking:
+- Deploy to production (for prototyping/MVP stages)
+- Fix bugs and errors
+- Run tests and diagnostics
+- Create automation scripts
+- Update documentation
+- Add console.log statements for debugging
+- Create backup branches
+- Try up to 10 different approaches to solve problems
+- Update dependencies if needed
+- Create new API endpoints
+- Modify database schema for features
+- Implement security best practices
+
+### ❌ ALWAYS Ask Before:
+- Deleting user data
+- Major architectural refactors
+- Rolling back deployed changes
+- Setting up paid services
+- Changing core business logic
+- Removing existing features
+- Modifying authentication flow
+
+### 🤔 Use Judgment For:
+- Performance optimizations (minor = do, major = ask)
+- UI/UX changes (small = do, significant = ask)
+- New dependencies (common = do, unusual = ask)
+
+---
+
+## Development Rules
+
+### Critical Rules (NEVER BREAK THESE):
+1. **Never create fallback systems** without explicit request
+2. **Always create backup** before major changes
+3. **Do only what's asked** - nothing more, nothing less
+4. **Never create files** unless absolutely necessary
+5. **Always prefer editing** existing files to creating new ones
+6. **API keys go in .env file** - never in code or CLAUDE.md
+7. **Never proactively create documentation files** unless requested
+
+### File Management:
+- Mark deprecated files immediately in session logs
+- Use git branches for major changes
+- Keep todo list updated in real-time
+- Document file purposes clearly
+
+### Testing Approach:
+- Always verify in browser first
+- Create automated tests for critical paths
+- Test edge cases and error states
+- Document test scenarios
 
 ---
 
