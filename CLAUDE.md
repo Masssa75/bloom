@@ -362,7 +362,7 @@ supabase db pull
 
 ## Session Log
 
-### Session - December 18, 2025 (Context Caching): Token Optimization
+### Session - December 19, 2025: Context Caching & Bug Fixes
 
 **Completed:**
 - Implemented Moonshot context caching to reduce token costs
@@ -375,17 +375,33 @@ supabase db pull
   - `/api/chat` now accepts single `message` + `sessionId` (not full array)
   - Returns `sessionId` on first message for subsequent use
   - Cache TTL: 1 hour, auto-refreshed on each use
+  - **Extended timeout to 60 seconds** (`maxDuration = 60`) - was timing out at default 10s
 - Frontend changes:
   - ChatPage tracks `sessionId` in state
   - Session resets when switching children
   - Retry resets session (starts fresh)
+  - Console logging for cache status: `📝 New session`, `⚡ USING CACHE`, `🔄 No cache`
+- Bug fixes:
+  - Fixed component tag parsing regex (double-escape `[\\s\\S]` in template strings)
+  - Fixed `done` event sent before cache operations (was blocking client)
+  - Added error handling for cache creation failures (non-blocking)
+- UX improvements:
+  - Tool call badges now show document titles: `document: Quick Reference Guide ✓`
+  - Child overview badge shows child name: `child overview: Michael ✓`
+  - Hover tooltip shows full title for truncated names
+- Testing:
+  - Created Playwright test for chat flow (`tests/chat-test.spec.ts`)
+  - Added test account as collaborator on Michael's profile
+  - Tests pass with 34s response time
 
 **How caching works:**
 1. First message: Full context sent, response processed, cache created
 2. Second+ messages: Only `cache_id` + new message sent
 3. Cache includes: system prompt, tools, all messages, all tool results
 
-**Note:** Uses Moonshot's caching API at `api.moonshot.cn/v1/caching` (different from chat at `.ai`)
+**Key fix:** Netlify functions default to 10s timeout - extended to 60s with `export const maxDuration = 60`
+
+**Note:** Moonshot caching API at `api.moonshot.cn/v1/caching` (different from chat at `.ai`)
 
 ---
 
