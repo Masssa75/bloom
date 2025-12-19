@@ -43,7 +43,7 @@
 - Get AI-powered guidance using case context (Kimi K2 integration)
 
 **Live URL:** https://bloom.wunderkind.world
-**GitHub:** https://github.com/Masssa75/bloom
+**GitHub:** https://github.com/Masssa75/bloom-app
 
 ## Current State (December 19, 2025)
 
@@ -384,10 +384,55 @@ supabase db pull
 ```
 
 ### Session Management
-- **WRAP keyword**: End session with cleanup:
-  1. Update session logs in `logs/` folder with what was accomplished
-  2. Document progress and mark todos complete
-  3. Commit and push all changes
+
+#### Wrap Protocol
+When the user says **"WRAP"** or "wrap this session", perform end-of-session cleanup:
+
+1. **Determine Session Number:**
+   - Read `/logs/SESSION-LOG-INDEX.md` to find the current session count
+   - This session will be: (current count + 1)
+   - Example: If "Total Sessions: 3", this session is Session 4
+
+2. **Create/Update Session Log:**
+   - File: `/logs/SESSION-LOG-YYYY-MM.md` (e.g., `SESSION-LOG-2025-12.md`)
+   - Add entry as: `## Session N - December 19, 2025: Title` (where N is the session number)
+   - Include: Summary, changes made, decisions, next steps
+
+3. **Update Session Index:**
+   - File: `/logs/SESSION-LOG-INDEX.md`
+   - Add entry with session number, date, and brief summary
+   - Increment "Total Sessions" count (if tracked)
+   - Update "Latest Session" reference
+
+4. **Inform User of Session Number:**
+   - After wrapping, tell the user: "Session N wrapped successfully" (where N is the session number)
+   - This helps the user track which session they just completed
+
+5. **Update CLAUDE.md:**
+   - Update "Current State" section with new features
+   - Move detailed work to session logs
+   - Keep only essential current state info
+
+6. **Mark Todos as Complete:**
+   - Update todo statuses for completed work
+
+7. **Commit and Push:**
+   - Commit all changes with descriptive message
+   - Push to remote repository
+
+#### Mid-Task WRAP
+If wrapping during incomplete work:
+- Keep incomplete todos as "pending" or "in_progress"
+- Add "Next Session Notes" section to session log
+- Document: current progress, next steps, important context
+- List files partially modified and tests still needed
+
+#### Session Logging Guidelines
+- Keep CLAUDE.md focused on current state and essential documentation
+- Move completed work details to dated session logs
+- Session logs preserve full history while keeping main doc clean
+
+#### Other Session Rules
 - **File deprecation**: Mark old files immediately when creating new versions with reason
 - **Incomplete work**: Document current state and next steps in session logs
 
@@ -477,6 +522,30 @@ When debugging issues, follow this systematic 5-step approach:
 5. **Always prefer editing** existing files to creating new ones
 6. **API keys go in .env file** - never in code or CLAUDE.md
 7. **Never proactively create documentation files** unless requested
+
+### Repository Security (NEVER BREAK THESE):
+1. **CLAUDE.md stays local** - must be in root (outside app/), never pushed to GitHub
+2. **logs/ stays local** - session logs contain project context, never push
+3. **.env files stay local** - in root, symlinked to app/ for runtime
+4. **Only app/ folder is the git repo** - everything in root is local-only
+5. **Verify .gitignore** before first commit on any new project
+
+### Project Structure (Security Pattern):
+```
+bloom/                    # LOCAL ONLY - not a git repo
+├── CLAUDE.md            # Project context (local only)
+├── logs/                # Session logs (local only)
+├── .env.local           # Secrets (local only)
+├── design-mockups.html  # Local design reference
+└── app/                 # GIT REPO - pushed to GitHub
+    ├── .git/
+    ├── src/
+    ├── public/
+    ├── package.json
+    ├── .gitignore
+    ├── .env.local -> ../.env.local  # Symlink to root
+    └── ...
+```
 
 ### File Management:
 - Mark deprecated files immediately in session logs
