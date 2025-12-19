@@ -587,12 +587,15 @@ bloom/                    # LOCAL ONLY - not a git repo
 - Test edge cases and error states
 - Document test scenarios
 
-### Scenario Testing Protocol
-For testing AI chat responses, use the **scenario-testing** skill:
-- Location: `app/.claude/skills/scenario-testing/`
-- Invoke by saying: "Let's run scenario testing" or "Test AI responses"
-- Includes: personas, scenarios, evaluation rubric, improvement tracking
-- Test child: Alex (safe duplicate of Michael for experimentation)
+### AI-Dev Workflow
+For iterative AI improvement, use the **ai-dev** skill:
+- **Invoke:** `/ai-dev` or "run the ai-dev workflow"
+- **Location:** `app/.claude/skills/ai-dev/`
+- **Key file:** `dev-log.md` - read this first to see current state and backlog
+
+This is a **human-in-the-loop workflow**: Claude proposes, user approves at checkpoints.
+- Test child: Alex (`6e702a66-e366-4bb7-8eae-e62cae2b13a0`)
+- Includes: scenarios, evaluation rubric, per-area history tracking
 
 ---
 
