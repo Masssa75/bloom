@@ -1,5 +1,45 @@
 # Bloom Session Log - December 2025
 
+## Session 2 - December 19, 2025: Discovery Interview Mode
+
+### Overview
+Implemented AI-guided discovery interviews for new children who don't have case files yet. The system now auto-detects whether to run in interview mode or case support mode.
+
+### Completed
+
+**Discovery Interview System:**
+- AI conducts natural discovery interviews for new children
+- Creates `interview` type documents to persist conversation transcript
+- Real-time transcript updates with timestamps
+- `close_interview` tool lets AI wrap up and generate summary
+
+**Auto-Mode Detection:**
+- **Interview Mode**: Activated when child has no case files, or has an open interview
+- **Case Support Mode**: Activated when child has existing case files (no open interview)
+- Seamless mode switching after interview closes
+
+**Interview Flow:**
+1. User adds new child (no documents)
+2. Chat opens → AI detects no case files → starts discovery interview
+3. AI asks warm, open-ended questions following user's lead
+4. AI explores temperament, emotions, relationships, interests, strengths, edges
+5. When enough info gathered, AI offers to wrap up
+6. AI calls `close_interview` tool → summary saved to document
+
+**New Tools:**
+- `close_interview` - Generates summary, one-liner, key traits, suggested frameworks
+
+**Interview Document:**
+- Type: `interview`, Subtype: `discovery`
+- Weight: 5 (essential)
+- Status: `open` (in progress) or `closed` (complete)
+- Full transcript saved with timestamps
+
+### Files Changed
+- `src/app/api/chat/route.ts` - Interview mode logic, new tools, mode detection
+
+---
+
 ## Session 1 - December 19, 2025: Context Caching & Bug Fixes
 
 ### Overview

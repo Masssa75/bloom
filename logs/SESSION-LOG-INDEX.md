@@ -6,6 +6,12 @@ This index provides a comprehensive overview of all Bloom development sessions. 
 
 ### December 2025 Sessions
 
+#### [Session 2 - December 19, 2025 - Discovery Interview Mode](SESSION-LOG-2025-12.md#session-2---december-19-2025-discovery-interview-mode)
+- **AI-guided discovery interviews** for new children without case files
+- **Auto-mode detection**: interview mode vs case support mode
+- **Interview documents** persist transcript with timestamps
+- **close_interview tool** generates summary and key traits
+
 #### [Session 1 - December 19, 2025 - Context Caching & Bug Fixes](SESSION-LOG-2025-12.md#session-1---december-19-2025-context-caching--bug-fixes)
 - **Moonshot context caching** implemented for up to 90% token savings on long conversations
 - **chat_sessions table** created for persistent conversation history with tool results
