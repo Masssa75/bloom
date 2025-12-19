@@ -45,7 +45,7 @@
 **Live URL:** https://bloom.wunderkind.world
 **GitHub:** https://github.com/Masssa75/bloom
 
-## Current State (December 18, 2025)
+## Current State (December 19, 2025)
 
 ### What's Built ✅
 - **Auth**: Login/signup with email confirmation (Supabase Auth)
@@ -61,10 +61,14 @@
   - Markdown rendering (lists, bold) in plain text
   - Incomplete response detection with retry button
   - Auto-expanding input, tool call badges
+- **Discovery Interviews**: AI-guided interviews for new children
+  - Auto-detects interview mode vs case support mode
+  - Persistent transcript document with timestamps
+  - AI suggests closing when enough info gathered
+  - `close_interview` tool generates summary and key traits
 - **Playwright Tests**: E2E tests for add-child and invite flows
 
 ### What's NOT Built Yet ❌
-- AI-guided interviews
 - Framework analysis generation
 - Progress tracking over time
 - Chat history UI (sessions persist in DB, but no UI to view past chats)
@@ -515,14 +519,12 @@ See:
 
 1. **Re-enable Groq when tool calling improves** - Groq is 40x faster than Moonshot but currently has unreliable tool calling. Monitor their updates and re-add as an option when fixed.
 
-2. **Chat History Persistence** - Save conversations to database
+2. **Chat History UI** - Display past chat sessions (data already persists)
 
-3. **Generate context_index** - Auto-generate from content_items
+3. **Generate context_index** - Auto-generate from content_items after interview closes
 
-4. **More Children** - Import Amelia, other case files
+4. **Framework Research after Interview** - AI searches for frameworks matching child profile
 
-5. **AI-Guided Interviews** - Structured interview flow with AI
+5. **Progress Tracking** - Track improvements over time
 
-6. **Progress Tracking** - Track improvements over time
-
-7. **Incident Reporting via Chat** - Natural conversation to log incidents
+6. **Incident Reporting via Chat** - Natural conversation to log incidents
