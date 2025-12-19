@@ -84,22 +84,169 @@ const webSearchTool: OpenAI.Chat.Completions.ChatCompletionTool = {
   }
 }
 
+// Close interview tool - AI calls this when it has gathered enough information
+const closeInterviewTool: OpenAI.Chat.Completions.ChatCompletionTool = {
+  type: 'function',
+  function: {
+    name: 'close_interview',
+    description: 'Close the discovery interview when you have gathered enough information to create a profile. Call this after confirming with the user that they are ready to wrap up.',
+    parameters: {
+      type: 'object',
+      properties: {
+        summary: {
+          type: 'string',
+          description: 'A comprehensive summary of what you learned about the child (2-3 paragraphs)'
+        },
+        one_liner: {
+          type: 'string',
+          description: 'A one-line description of the child based on the interview'
+        },
+        key_traits: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'List of 3-5 key personality traits or characteristics'
+        },
+        areas_to_explore: {
+          type: 'array',
+          items: { type: 'string' },
+          description: 'Suggested frameworks or approaches to research based on what you learned'
+        }
+      },
+      required: ['summary', 'one_liner', 'key_traits']
+    }
+  }
+}
+
+// Interview tools (available during interview mode)
+const interviewTools: OpenAI.Chat.Completions.ChatCompletionTool[] = [
+  webSearchTool,
+  closeInterviewTool
+]
+
+// Interview document helpers
+async function getOpenInterview(childId: string): Promise<{
+  id: string
+  title: string
+  full_content: string | null
+  metadata: { status: string }
+} | null> {
+  const { data } = await supabase
+    .from('content_items')
+    .select('id, title, full_content, metadata')
+    .eq('child_id', childId)
+    .eq('type', 'interview')
+    .eq('metadata->>status', 'open')
+    .single()
+  return data
+}
+
+async function createInterviewDocument(childId: string, userId: string | null): Promise<string> {
+  const now = new Date()
+  const dateStr = now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
+
+  const { data, error } = await supabase
+    .from('content_items')
+    .insert({
+      child_id: childId,
+      created_by: userId,
+      type: 'interview',
+      subtype: 'discovery',
+      title: `Discovery Interview - ${dateStr}`,
+      one_liner: 'Initial discovery interview (in progress)',
+      full_content: `# Discovery Interview\nStarted: ${now.toISOString()}\n\n---\n\n`,
+      weight: 5,
+      metadata: { status: 'open' }
+    })
+    .select('id')
+    .single()
+
+  if (error) {
+    console.error('Failed to create interview document:', error)
+    throw error
+  }
+  return data.id
+}
+
+async function appendToInterview(interviewId: string, userMessage: string, assistantMessage: string): Promise<void> {
+  // Get current content
+  const { data } = await supabase
+    .from('content_items')
+    .select('full_content')
+    .eq('id', interviewId)
+    .single()
+
+  const currentContent = data?.full_content || ''
+  const timestamp = new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+
+  // Append the exchange
+  const newContent = currentContent +
+    `**[${timestamp}] Interviewer:** ${userMessage}\n\n` +
+    `**[${timestamp}] Response:** ${assistantMessage}\n\n---\n\n`
+
+  await supabase
+    .from('content_items')
+    .update({
+      full_content: newContent,
+      updated_at: new Date().toISOString()
+    })
+    .eq('id', interviewId)
+}
+
+async function closeInterviewDocument(
+  interviewId: string,
+  summary: string,
+  oneLiner: string,
+  keyTraits: string[]
+): Promise<void> {
+  const { data } = await supabase
+    .from('content_items')
+    .select('full_content')
+    .eq('id', interviewId)
+    .single()
+
+  const currentContent = data?.full_content || ''
+  const closedAt = new Date().toISOString()
+
+  // Add summary section at the end
+  const finalContent = currentContent +
+    `\n## Interview Summary\n\n` +
+    `**Closed:** ${closedAt}\n\n` +
+    `**Key Traits:** ${keyTraits.join(', ')}\n\n` +
+    `${summary}\n`
+
+  await supabase
+    .from('content_items')
+    .update({
+      full_content: finalContent,
+      summary: summary,
+      one_liner: oneLiner,
+      metadata: { status: 'closed' },
+      updated_at: closedAt
+    })
+    .eq('id', interviewId)
+}
+
 // Execute tool calls
-async function executeTool(name: string, args: Record<string, string>): Promise<string> {
+async function executeTool(
+  name: string,
+  args: Record<string, unknown>,
+  context?: { interviewId?: string }
+): Promise<string> {
   try {
     if (name === 'get_child_overview') {
+      const childId = args.child_id as string
       const { data: child } = await supabase
         .from('children')
         .select('id, name, age, date_of_birth, notes, context_index')
-        .eq('id', args.child_id)
+        .eq('id', childId)
         .single()
 
       if (!child) return JSON.stringify({ error: 'Child not found' })
 
       const { data: documents } = await supabase
         .from('content_items')
-        .select('id, type, subtype, title, one_liner, weight')
-        .eq('child_id', args.child_id)
+        .select('id, type, subtype, title, one_liner, weight, metadata')
+        .eq('child_id', childId)
         .order('weight', { ascending: false })
         .order('created_at', { ascending: false })
 
@@ -111,16 +258,22 @@ async function executeTool(name: string, args: Record<string, string>): Promise<
           notes: child.notes,
           context_index: child.context_index
         },
-        documents: documents || []
+        documents: (documents || []).map(d => ({
+          ...d,
+          // Include interview status for visibility
+          status: d.type === 'interview' ? (d.metadata as { status?: string })?.status : undefined
+        }))
       })
     }
 
     if (name === 'get_document') {
+      const childId = args.child_id as string
+      const docId = args.document_id as string
       const { data: document } = await supabase
         .from('content_items')
         .select('id, type, subtype, title, one_liner, summary, full_content, weight, metadata')
-        .eq('id', args.document_id)
-        .eq('child_id', args.child_id)
+        .eq('id', docId)
+        .eq('child_id', childId)
         .single()
 
       if (!document) return JSON.stringify({ error: 'Document not found' })
@@ -140,8 +293,30 @@ async function executeTool(name: string, args: Record<string, string>): Promise<
     if (name === 'web_search') {
       return JSON.stringify({
         status: 'Web search initiated',
-        query: args.query,
+        query: args.query as string,
         note: 'Results will be incorporated by Kimi'
+      })
+    }
+
+    if (name === 'close_interview') {
+      if (!context?.interviewId) {
+        return JSON.stringify({ error: 'No active interview to close' })
+      }
+
+      const summary = args.summary as string
+      const oneLiner = args.one_liner as string
+      const keyTraits = args.key_traits as string[]
+      const areasToExplore = args.areas_to_explore as string[] | undefined
+
+      await closeInterviewDocument(context.interviewId, summary, oneLiner, keyTraits)
+
+      return JSON.stringify({
+        status: 'Interview closed successfully',
+        summary,
+        one_liner: oneLiner,
+        key_traits: keyTraits,
+        areas_to_explore: areasToExplore || [],
+        next_step: 'You can now offer to research frameworks or create additional resources based on what you learned.'
       })
     }
 
@@ -180,13 +355,26 @@ ${generateComponentPrompt()}
 - Keep responses concise - caregivers are busy`
 }
 
-// Discovery Interview Mode - when child has no documents
-function buildInterviewPrompt(childName: string): string {
+// Discovery Interview Mode - for new or continuing interviews
+function buildInterviewPrompt(childName: string, isResuming: boolean, previousTranscript?: string): string {
+  const openingSection = isResuming
+    ? `## Continuing Interview
+
+You're resuming a discovery interview about **${childName}**. Review the previous conversation and pick up naturally where you left off.
+
+Previous transcript:
+${previousTranscript || '(No previous content)'}
+
+---
+
+Continue the conversation naturally. Reference what you've already learned and explore areas not yet covered.`
+    : `## Your Opening
+
+Start with: "I'd love to learn about ${childName}. Tell me about them - start wherever feels important to you."`
+
   return `You are Bloom AI, conducting a discovery interview to understand **${childName}**.
 
-## Your Opening
-
-Start with: "I'd love to learn about ${childName}. Tell me about them - start wherever feels important to you."
+${openingSection}
 
 ## Interview Approach
 
@@ -216,7 +404,18 @@ Start with: "I'd love to learn about ${childName}. Tell me about them - start wh
 - One question at a time - don't overwhelm
 - Keep it conversational, not like a form
 
-**After the interview:** Offer to research frameworks or resources that match what you learned. Use web_search to find developmental approaches, parenting strategies, or enrichment ideas that fit their profile.`
+## When to Close the Interview
+
+When you feel you have a good picture of ${childName} (usually after exploring 4-5 areas in depth), you can suggest wrapping up:
+
+"I feel like I'm getting a good picture of ${childName}. Would you like me to summarize what I've learned, or is there anything else important you'd like to share?"
+
+If they're ready, use the **close_interview** tool to:
+1. Generate a comprehensive summary
+2. Capture key personality traits
+3. Note areas for further exploration
+
+After closing, offer to research relevant frameworks or create resources based on what you learned.`
 }
 
 // Create or update Moonshot cache
@@ -295,15 +494,42 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Check if child has documents to determine mode
-    const { count } = await supabase
+    // Check for open interview or other documents to determine mode
+    const openInterview = await getOpenInterview(childId)
+
+    // Count non-interview documents (case files)
+    const { count: caseFileCount } = await supabase
       .from('content_items')
       .select('id', { count: 'exact', head: true })
       .eq('child_id', childId)
+      .neq('type', 'interview')
 
-    const hasDocuments = (count ?? 0) > 0
-    const isInterviewMode = !hasDocuments
-    const tools = isInterviewMode ? [webSearchTool] : [...baseTools, webSearchTool]
+    const hasCaseFiles = (caseFileCount ?? 0) > 0
+
+    // Determine mode:
+    // - Has open interview → interview mode (continue)
+    // - No documents at all → interview mode (start new)
+    // - Has case files but no open interview → case support mode
+    let interviewId: string | null = null
+    let isInterviewMode = false
+    let isResuming = false
+    let previousTranscript: string | undefined
+
+    if (openInterview) {
+      // Continue existing interview
+      isInterviewMode = true
+      isResuming = true
+      interviewId = openInterview.id
+      previousTranscript = openInterview.full_content || undefined
+    } else if (!hasCaseFiles) {
+      // Start new interview
+      isInterviewMode = true
+      isResuming = false
+      interviewId = await createInterviewDocument(childId, userId)
+    }
+    // else: case support mode (hasCaseFiles && !openInterview)
+
+    const tools = isInterviewMode ? interviewTools : [...baseTools, webSearchTool]
 
     // Load or create session
     let session: {
@@ -324,7 +550,7 @@ export async function POST(request: NextRequest) {
 
     // Build system prompt
     const systemPrompt = isInterviewMode
-      ? buildInterviewPrompt(childName || 'this child')
+      ? buildInterviewPrompt(childName || 'this child', isResuming, previousTranscript)
       : buildCaseSupportPrompt(childId, childName || 'this child')
 
     // Determine if we can use cache
@@ -498,7 +724,7 @@ export async function POST(request: NextRequest) {
                 })}\n\n`))
 
                 const args = JSON.parse(tc.function.arguments)
-                const result = await executeTool(tc.function.name, args)
+                const result = await executeTool(tc.function.name, args, { interviewId: interviewId || undefined })
 
                 // Extract details for display (e.g., document title)
                 let detail: string | undefined
@@ -508,6 +734,10 @@ export async function POST(request: NextRequest) {
                     detail = parsed.title
                   } else if (tc.function.name === 'get_child_overview' && parsed.child?.name) {
                     detail = parsed.child.name
+                  } else if (tc.function.name === 'close_interview' && parsed.status === 'Interview closed successfully') {
+                    detail = 'Interview closed'
+                    // Clear interview mode for rest of conversation
+                    interviewId = null
                   }
                 } catch { /* ignore parse errors */ }
 
@@ -550,6 +780,15 @@ export async function POST(request: NextRequest) {
         // Add final assistant response to conversation
         if (finalAssistantContent) {
           fullConversation.push({ role: 'assistant', content: finalAssistantContent })
+
+          // Update interview transcript if in interview mode
+          if (interviewId && isInterviewMode) {
+            try {
+              await appendToInterview(interviewId, message, finalAssistantContent)
+            } catch (err) {
+              console.error('Failed to update interview transcript:', err)
+            }
+          }
         }
 
         // Send done BEFORE cache operations (so client isn't waiting)
