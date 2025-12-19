@@ -5,6 +5,28 @@
 ### Overview
 Implemented AI-guided discovery interviews for new children who don't have case files yet. The system now auto-detects whether to run in interview mode or case support mode.
 
+### Design Decisions
+
+**Unified Interview Approach:**
+The key insight was that the same interview process works for both:
+- Children with behavioral concerns (like Michael) - problems surface naturally
+- Children without issues (like Ofelia) - becomes a discovery of personality/strengths
+
+Opening question: "Tell me about [child]. Start wherever feels important to you."
+- If parent leads with concerns → AI follows that thread with ABC pattern
+- If parent describes personality → AI asks for specific examples
+
+**One Process, Different Outcomes:**
+- No need to ask "is there a problem?" - the parent's lead reveals it
+- Same interview phases: Open Narrative → Go Deeper → Round Out → Clarify
+- AI gathers data without interpreting during the interview
+- Analysis and framework research happens after interview closes
+
+**Programmatic Mode Detection (not AI detection):**
+- Mode determined server-side before AI call (simpler, more reliable)
+- Two separate focused prompts: `buildInterviewPrompt()` and `buildCaseSupportPrompt()`
+- Interview mode only gets interview tools; case support gets document tools
+
 ### Completed
 
 **Discovery Interview System:**
@@ -12,6 +34,7 @@ Implemented AI-guided discovery interviews for new children who don't have case 
 - Creates `interview` type documents to persist conversation transcript
 - Real-time transcript updates with timestamps
 - `close_interview` tool lets AI wrap up and generate summary
+- Interview resumption: loads previous transcript when returning
 
 **Auto-Mode Detection:**
 - **Interview Mode**: Activated when child has no case files, or has an open interview
@@ -20,11 +43,12 @@ Implemented AI-guided discovery interviews for new children who don't have case 
 
 **Interview Flow:**
 1. User adds new child (no documents)
-2. Chat opens → AI detects no case files → starts discovery interview
+2. Chat opens → detects no case files → starts discovery interview
 3. AI asks warm, open-ended questions following user's lead
 4. AI explores temperament, emotions, relationships, interests, strengths, edges
 5. When enough info gathered, AI offers to wrap up
 6. AI calls `close_interview` tool → summary saved to document
+7. Child now has documents → future chats use case support mode
 
 **New Tools:**
 - `close_interview` - Generates summary, one-liner, key traits, suggested frameworks
@@ -36,7 +60,7 @@ Implemented AI-guided discovery interviews for new children who don't have case 
 - Full transcript saved with timestamps
 
 ### Files Changed
-- `src/app/api/chat/route.ts` - Interview mode logic, new tools, mode detection
+- `src/app/api/chat/route.ts` - Interview mode logic, new tools, mode detection, transcript persistence
 
 ---
 

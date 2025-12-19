@@ -7,9 +7,10 @@ This index provides a comprehensive overview of all Bloom development sessions. 
 ### December 2025 Sessions
 
 #### [Session 2 - December 19, 2025 - Discovery Interview Mode](SESSION-LOG-2025-12.md#session-2---december-19-2025-discovery-interview-mode)
+- **Unified interview design**: Same process works for children with/without behavioral concerns
 - **AI-guided discovery interviews** for new children without case files
-- **Auto-mode detection**: interview mode vs case support mode
-- **Interview documents** persist transcript with timestamps
+- **Auto-mode detection**: Programmatic (server-side), not AI detection
+- **Interview documents** persist transcript with timestamps, support resumption
 - **close_interview tool** generates summary and key traits
 
 #### [Session 1 - December 19, 2025 - Context Caching & Bug Fixes](SESSION-LOG-2025-12.md#session-1---december-19-2025-context-caching--bug-fixes)
