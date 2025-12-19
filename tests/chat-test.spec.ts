@@ -22,8 +22,8 @@ test.describe('Chat functionality', () => {
     await page.goto('/chat')
     await page.waitForLoadState('networkidle')
 
-    // Wait for the chat interface to load
-    await expect(page.locator('textarea[placeholder*="Message"]')).toBeVisible({ timeout: 10000 })
+    // Wait for the chat interface to load (placeholder changes based on interview/support mode)
+    await expect(page.locator('textarea')).toBeVisible({ timeout: 10000 })
 
     // Select Michael from the dropdown (he has case files)
     // First, check the placeholder to see current child
@@ -42,7 +42,7 @@ test.describe('Chat functionality', () => {
     }
 
     // Type a simple message
-    const textarea = page.locator('textarea[placeholder*="Message"]')
+    const textarea = page.locator('textarea')
     await textarea.fill('What is Michael\'s main challenge?')
 
     // Capture all console logs
@@ -111,8 +111,9 @@ test.describe('Chat functionality', () => {
 
     await page.goto('/chat')
     await page.waitForLoadState('networkidle')
+    await expect(page.locator('textarea')).toBeVisible({ timeout: 10000 })
 
-    const textarea = page.locator('textarea[placeholder*="Message"]')
+    const textarea = page.locator('textarea')
     await textarea.fill('Hi')
     await textarea.press('Enter')
 
