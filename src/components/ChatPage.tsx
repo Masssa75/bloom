@@ -3,6 +3,7 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import { getComponentTags } from '@/lib/chat/components'
+import { createClient } from '@/lib/supabase/client'
 
 interface Child {
   id: string
@@ -314,6 +315,7 @@ export default function ChatPage({ children, userId }: ChatPageProps) {
   const [historyOpen, setHistoryOpen] = useState(false)
   const [historySessions, setHistorySessions] = useState<HistorySession[]>([])
   const [loadingHistory, setLoadingHistory] = useState(false)
+  const [isInterviewMode, setIsInterviewMode] = useState<boolean | null>(null) // null = loading
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
@@ -333,6 +335,46 @@ export default function ChatPage({ children, userId }: ChatPageProps) {
   useEffect(() => {
     setMessages([])
     setSessionId(null)
+    setIsInterviewMode(null) // Reset mode while checking
+  }, [selectedChild?.id])
+
+  // Check if child is in interview mode (no case files yet)
+  useEffect(() => {
+    async function checkMode() {
+      if (!selectedChild) {
+        setIsInterviewMode(null)
+        return
+      }
+
+      const supabase = createClient()
+
+      // Check for open interview
+      const { data: openInterview } = await supabase
+        .from('content_items')
+        .select('id')
+        .eq('child_id', selectedChild.id)
+        .eq('type', 'interview')
+        .eq('metadata->>status', 'open')
+        .single()
+
+      if (openInterview) {
+        // Has open interview - interview mode
+        setIsInterviewMode(true)
+        return
+      }
+
+      // Count non-interview documents (case files)
+      const { count } = await supabase
+        .from('content_items')
+        .select('id', { count: 'exact', head: true })
+        .eq('child_id', selectedChild.id)
+        .neq('type', 'interview')
+
+      // No case files = interview mode
+      setIsInterviewMode((count ?? 0) === 0)
+    }
+
+    checkMode()
   }, [selectedChild?.id])
 
   // Auto-resize textarea
@@ -924,35 +966,67 @@ export default function ChatPage({ children, userId }: ChatPageProps) {
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
         {messages.length === 0 && selectedChild && (
           <div className="flex flex-col items-center justify-center h-full py-12">
-            <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-              <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-              </svg>
-            </div>
-            <h3 className="text-lg font-medium text-gray-800 mb-2">
-              How can I help with {selectedChild.name}?
-            </h3>
-            <p className="text-gray-500 text-center mb-6 max-w-sm">
-              Ask me anything about behavioral strategies, report an incident, or get guidance based on {selectedChild.name}&apos;s case files.
-            </p>
-            <div className="flex flex-wrap gap-2 justify-center max-w-md">
-              {[
-                `${selectedChild.name} pushed a classmate`,
-                'Help with a meltdown',
-                'Transition strategies',
-              ].map((suggestion, i) => (
+            {/* Loading state while checking mode */}
+            {isInterviewMode === null ? (
+              <div className="w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+            ) : isInterviewMode ? (
+              /* Interview Mode Welcome */
+              <>
+                <div className="w-16 h-16 bg-amber-100 rounded-full flex items-center justify-center mb-4">
+                  <svg className="w-8 h-8 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-medium text-gray-800 mb-2">
+                  Let&apos;s get to know {selectedChild.name}
+                </h3>
+                <p className="text-gray-500 text-center mb-6 max-w-sm">
+                  I&apos;d love to learn about {selectedChild.name}. Just start talking - there&apos;s no wrong way to begin.
+                </p>
                 <button
-                  key={i}
                   onClick={() => {
-                    setInput(suggestion)
+                    setInput(`Hi, I'd like to tell you about ${selectedChild.name}`)
                     inputRef.current?.focus()
                   }}
-                  className="text-sm bg-white border border-gray-200 rounded-full px-4 py-2 hover:bg-gray-50 text-gray-700 transition-colors shadow-sm"
+                  className="text-sm bg-amber-50 border border-amber-200 rounded-full px-6 py-3 hover:bg-amber-100 text-amber-800 transition-colors shadow-sm font-medium"
                 >
-                  {suggestion}
+                  Start the conversation
                 </button>
-              ))}
-            </div>
+              </>
+            ) : (
+              /* Case Support Mode Welcome */
+              <>
+                <div className="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
+                  <svg className="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                  </svg>
+                </div>
+                <h3 className="text-lg font-medium text-gray-800 mb-2">
+                  How can I help with {selectedChild.name}?
+                </h3>
+                <p className="text-gray-500 text-center mb-6 max-w-sm">
+                  Ask me anything about behavioral strategies, report an incident, or get guidance based on {selectedChild.name}&apos;s case files.
+                </p>
+                <div className="flex flex-wrap gap-2 justify-center max-w-md">
+                  {[
+                    `${selectedChild.name} pushed a classmate`,
+                    'Help with a meltdown',
+                    'Transition strategies',
+                  ].map((suggestion, i) => (
+                    <button
+                      key={i}
+                      onClick={() => {
+                        setInput(suggestion)
+                        inputRef.current?.focus()
+                      }}
+                      className="text-sm bg-white border border-gray-200 rounded-full px-4 py-2 hover:bg-gray-50 text-gray-700 transition-colors shadow-sm"
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         )}
 
@@ -1019,7 +1093,13 @@ export default function ChatPage({ children, userId }: ChatPageProps) {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder={selectedChild ? `Message about ${selectedChild.name}...` : 'Select a child first...'}
+            placeholder={
+              !selectedChild
+                ? 'Select a child first...'
+                : isInterviewMode
+                  ? `Tell me about ${selectedChild.name}...`
+                  : `Message about ${selectedChild.name}...`
+            }
             className="flex-1 resize-none rounded-xl border border-gray-300 px-4 py-3 text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent min-h-[48px] max-h-[200px]"
             rows={1}
             disabled={isLoading || !selectedChild}

@@ -66,12 +66,19 @@
   - Persistent transcript document with timestamps
   - AI suggests closing when enough info gathered
   - `close_interview` tool generates summary and key traits
-- **Playwright Tests**: E2E tests for add-child and invite flows
+- **Chat History UI**: View and load past chat sessions
+  - History panel with session previews
+  - Tool badges showing which docs were fetched
+  - Collaborators see all sessions for shared children
+- **Scenario Testing**: Framework for testing AI responses
+  - Test child "Alex" (duplicate of Michael) for safe experimentation
+  - Scenario runner script for automated testing
+- **Playwright Tests**: E2E tests for add-child, invite, and chat flows
 
 ### What's NOT Built Yet ❌
 - Framework analysis generation
 - Progress tracking over time
-- Chat history UI (sessions persist in DB, but no UI to view past chats)
+- Action panel sidebar (AI-managed suggested next steps)
 
 ## Tech Stack
 
@@ -253,6 +260,7 @@ For Playwright tests and manual testing:
 
 **Test Data:**
 - **Michael's child_id:** `c8b85995-d7d7-4380-8697-d0045aa58b8b`
+- **Alex's child_id:** `6e702a66-e366-4bb7-8eae-e62cae2b13a0` (test duplicate of Michael for scenario testing)
 
 ## Useful Scripts
 
@@ -353,6 +361,19 @@ POST /api/kimi/child/[childId]/documents         # Batch fetch by IDs
 **Authentication:** API key via `?api_key=` or `x-api-key` header
 **Env var:** `KIMI_API_KEY` (for external access)
 
+### Chat History API
+
+```
+GET  /api/chat/history?childId=xxx    # List sessions for a child
+POST /api/chat/history                # Load full session by ID
+     Body: { "sessionId": "xxx" }
+```
+
+**Returns (GET):**
+- `sessions[]`: Array with `id`, `createdAt`, `updatedAt`, `preview`, `messageCount`, `toolsUsed[]`
+
+**Access Control:** Uses service client to bypass RLS so collaborators see all sessions for shared children.
+
 ---
 
 ## Autonomous Development Workflow
@@ -419,6 +440,13 @@ When the user says **"WRAP"** or "wrap this session", perform end-of-session cle
 7. **Commit and Push:**
    - Commit all changes with descriptive message
    - Push to remote repository
+
+8. **Suggest CLAUDE.md Additions:**
+   - Review the session for important additions future instances should know about
+   - Only suggest long-term, foundational system information (not session-specific details)
+   - Good additions: new API endpoints, architectural patterns, test data IDs, critical workflows
+   - Skip: temporary scripts, one-time fixes, experimental features
+   - Present suggestions to user for approval before adding
 
 #### Mid-Task WRAP
 If wrapping during incomplete work:
@@ -559,6 +587,13 @@ bloom/                    # LOCAL ONLY - not a git repo
 - Test edge cases and error states
 - Document test scenarios
 
+### Scenario Testing Protocol
+For testing AI chat responses, use the **scenario-testing** skill:
+- Location: `app/.claude/skills/scenario-testing/`
+- Invoke by saying: "Let's run scenario testing" or "Test AI responses"
+- Includes: personas, scenarios, evaluation rubric, improvement tracking
+- Test child: Alex (safe duplicate of Michael for experimentation)
+
 ---
 
 ## Project Info
@@ -588,7 +623,7 @@ See:
 
 1. **Re-enable Groq when tool calling improves** - Groq is 40x faster than Moonshot but currently has unreliable tool calling. Monitor their updates and re-add as an option when fixed.
 
-2. **Chat History UI** - Display past chat sessions (data already persists)
+2. **Action Panel Sidebar** - Persistent AI-managed panel with suggested next actions (not inline in chat)
 
 3. **Generate context_index** - Auto-generate from content_items after interview closes
 

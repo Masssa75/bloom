@@ -1,5 +1,133 @@
 # Bloom Session Log - December 2025
 
+## Session 5 - December 19, 2025: Scenario Testing & Chat History UI
+
+### Overview
+Set up scenario-based testing framework for evaluating AI responses. Created test child "Alex" (duplicate of Michael). Implemented chat history UI so users can view past conversations. Fixed Playwright tests for updated app behavior.
+
+### Completed
+
+**Scenario Testing Framework:**
+- Created "Alex" as test child (duplicate of Michael with all 24 documents)
+- Built scenario runner script (`scripts/run-scenario.ts`)
+- Ran "Urgent Crisis" scenario - teacher with escalating student
+- AI response scored 8/10: used all components (`<urgent>`, `<script>`, `<later>`, `<insight>`, `<note>`), trauma-informed, case-aware
+
+**Chat History UI:**
+- Added history button (clock icon) in chat header
+- Slide-out panel showing past sessions with:
+  - Preview of first message
+  - Tool badges showing which docs were fetched
+  - Date and message count
+  - "New Chat" button
+- Load any past session to view full conversation
+- Fixed RLS issue so collaborators can see all sessions for shared children
+
+**Playwright Test Fixes:**
+- Updated `add-child.spec.ts` - expects `/chat` redirect after login
+- Updated `invite.spec.ts` - creates test child to ensure ownership
+- Updated `chat.spec.ts` - removed Groq toggle tests (Groq disabled)
+- All 7 tests now passing
+
+**Tool Call Tracking:**
+- Tool calls now saved with session messages
+- Displayed as badges in history list
+- Extracted and shown when loading past sessions
+
+### Analysis: Urgent Crisis Response
+
+The AI's crisis response demonstrated:
+- ✅ Immediate actions in `<urgent>` (3 bullets)
+- ✅ Exact script in `<script>` component
+- ✅ Follow-up steps in collapsible `<later>`
+- ✅ Case-aware insight (transitions trigger Alex's fight response)
+- ✅ Trauma-informed approach (nervous system, safety-first)
+
+**Identified Improvements:**
+1. Could cite specific documents ("See Quick Reference for more...")
+2. Missing "Don't Do" list for crisis moments
+3. No time expectations for de-escalation
+4. Action panel for suggested next steps (in progress)
+
+### Next Steps
+- **Action Panel Sidebar**: Persistent panel with AI-managed suggested actions
+- **System Prompt Improvements**: Cite docs, don't-do lists, time expectations
+- **More Scenarios**: Test other personas (parent advice-seeking, pattern questions)
+
+### Files Changed
+- `src/components/ChatPage.tsx` - History panel, tool call display
+- `src/app/api/chat/history/route.ts` - New API for chat history
+- `tests/add-child.spec.ts` - Fixed redirect expectation
+- `tests/invite.spec.ts` - Fixed ownership issue
+- `tests/chat.spec.ts` - Removed Groq tests
+- `scripts/duplicate-child.ts` - Create test children
+- `scripts/run-scenario.ts` - Scenario runner
+
+---
+
+## Session 4 - December 19, 2025: Repository Security & Project Restructure
+
+### Overview
+Major restructure to separate local-only files from deployable code. Implemented security pattern where CLAUDE.md, logs/, and .env files stay local (never pushed to GitHub), while app/ folder is the git repository.
+
+### Completed
+
+**Repository Restructure:**
+- Created `app/` subfolder for all deployable code
+- Moved src/, public/, package.json, configs, tests, scripts to app/
+- Root folder now contains only local files: CLAUDE.md, logs/, .env.local, design-mockups.html
+- Created symlink: `app/.env.local` → `../.env.local`
+
+**New GitHub Repository:**
+- Created fresh repo: https://github.com/Masssa75/bloom-app (private)
+- Old repo (github.com/Masssa75/bloom) kept as backup with full history
+- Clean git history without sensitive CLAUDE.md content
+
+**Security Rules Added to CLAUDE.md:**
+- Repository Security section (5 rules)
+- Project Structure diagram showing local vs git-tracked files
+- Added to Tier 1 protected sections
+
+**CLAUDE.md Improvements:**
+- Added two-tier protection manifest (Tier 1: never edit, Tier 2: can edit/don't remove)
+- Added missing workflow sections from bamboovalley:
+  - Communication Style
+  - The Sunbeam Debugging Protocol (5 steps)
+  - Autonomous Working Principles (Do/Ask/Judgment lists)
+  - Development Rules (7 critical rules)
+- Updated wrap protocol with detailed steps
+
+**Deployment:**
+- Connected new repo to Netlify
+- Build and deploy successful to bloom.wunderkind.world
+
+### Project Structure (New)
+```
+bloom/                    # LOCAL ONLY - not a git repo
+├── CLAUDE.md            # Project context (local only)
+├── logs/                # Session logs (local only)
+├── .env.local           # Secrets (local only)
+├── design-mockups.html  # Local design reference
+└── app/                 # GIT REPO - pushed to GitHub
+    ├── .git/
+    ├── src/
+    ├── public/
+    ├── package.json
+    └── ...
+```
+
+### Files Changed
+- `CLAUDE.md` - Added protection manifest, security rules, workflow sections
+- `app/*` - All deployable code now in subfolder
+- `logs/SESSION-LOG-INDEX.md` - Session tracking
+- New repo: github.com/Masssa75/bloom-app
+
+### Next Session Notes
+- Run Playwright tests to verify restructure (shell was broken this session)
+- Remove old .git folder from root once confirmed working
+
+---
+
 ## Session 3 - December 19, 2025: Interview Design & Transcript Persistence
 
 ### Overview

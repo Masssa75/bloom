@@ -6,6 +6,18 @@ This index provides a comprehensive overview of all Bloom development sessions. 
 
 ### December 2025 Sessions
 
+#### [Session 5 - December 19, 2025 - Scenario Testing & Chat History UI](SESSION-LOG-2025-12.md#session-5---december-19-2025-scenario-testing--chat-history-ui)
+- **Scenario testing framework**: Created Alex test child, ran Urgent Crisis scenario
+- **Chat history UI**: View past sessions with tool badges, load conversations
+- **Playwright fixes**: All 7 tests passing after redirect and Groq toggle fixes
+- **Tool call tracking**: Display which docs were fetched in history
+
+#### [Session 4 - December 19, 2025 - Repository Security & Project Restructure](SESSION-LOG-2025-12.md#session-4---december-19-2025-repository-security--project-restructure)
+- **Major restructure**: Separated local-only files from deployable code
+- **New repo**: github.com/Masssa75/bloom-app (app/ folder is git root)
+- **Security rules**: CLAUDE.md, logs/, .env stay local, never pushed
+- **CLAUDE.md improvements**: Protection manifest, workflow sections from bamboovalley
+
 #### [Session 3 - December 19, 2025 - Interview Design & Transcript Persistence](SESSION-LOG-2025-12.md#session-3---december-19-2025-interview-design--transcript-persistence)
 - **Unified interview design**: Same process works for children with/without behavioral concerns
 - **Programmatic mode detection**: Server-side, not AI detection
