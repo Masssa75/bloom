@@ -3,6 +3,10 @@ import { NextRequest } from 'next/server'
 import OpenAI from 'openai'
 import { generateComponentPrompt } from '@/lib/chat/components'
 
+// Extend timeout for this route (Netlify/Vercel)
+export const maxDuration = 60 // seconds
+export const dynamic = 'force-dynamic'
+
 // Supabase client for document fetching
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
